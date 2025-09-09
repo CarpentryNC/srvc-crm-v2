@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../contexts/ThemeContext'
+import { SmartSearch } from '../search/SmartSearch'
 
 interface HeaderProps {
   sidebarOpen: boolean;
@@ -9,13 +11,28 @@ interface HeaderProps {
 export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
   const { user, signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
+  const [searchOpen, setSearchOpen] = useState(false)
 
   const handleSignOut = async () => {
     await signOut()
   }
 
+  // Keyboard shortcut for search (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   return (
-    <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+    <>
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4">
           <div className="flex items-center">
@@ -45,28 +62,32 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
             
             {/* Search bar */}
             <div className="flex-1 max-w-lg mx-4 lg:mx-0">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg
-                    className="h-5 w-5 text-gray-400 dark:text-gray-500"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="w-full relative flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-left hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              >
+                <svg
+                  className="h-5 w-5 text-gray-400 dark:text-gray-500 mr-3"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  Search customers, jobs...
+                </span>
+                <div className="ml-auto flex items-center space-x-1">
+                  <kbd className="inline-flex items-center border border-gray-200 dark:border-gray-600 rounded px-1.5 py-0.5 text-xs font-mono font-medium text-gray-400 dark:text-gray-500">
+                    ⌘K
+                  </kbd>
                 </div>
-                <input
-                  type="search"
-                  placeholder="Search customers, jobs..."
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-              </div>
+              </button>
             </div>
           </div>
           
@@ -120,5 +141,12 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
         </div>
       </div>
     </header>
+
+    {/* Smart Search Modal */}
+    <SmartSearch 
+      isOpen={searchOpen} 
+      onClose={() => setSearchOpen(false)} 
+    />
+  </>
   )
 }
