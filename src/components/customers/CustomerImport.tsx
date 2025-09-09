@@ -21,6 +21,25 @@ import type {
 
 type ImportStep = 'upload' | 'mapping' | 'preview' | 'importing' | 'results';
 
+// Helper function to deduplicate customers within a batch based on email (when present)
+function deduplicateBatch(customers: any[]): any[] {
+  const seen = new Map();
+  const deduplicated: any[] = [];
+  
+  for (const customer of customers) {
+    // Create a key for deduplication - use email if present, otherwise allow duplicate null emails
+    const key = customer.email ? `${customer.user_id}-${customer.email}` : `${customer.user_id}-${Math.random()}`;
+    
+    if (!seen.has(key)) {
+      seen.set(key, true);
+      deduplicated.push(customer);
+    }
+    // If duplicate found within batch, skip it (it will be counted as a duplicate)
+  }
+  
+  return deduplicated;
+}
+
 export function CustomerImport() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -149,14 +168,22 @@ export function CustomerImport() {
       }
 
       // Convert CSV rows to customer objects
-      const customers = rowsToProcess.map(row => {
+      const customers = rowsToProcess.map((row, index) => {
         const customer = csvRowToCustomer(row, fieldMapping);
-        return {
+        const customerWithMeta = {
           ...customer,
           user_id: user.id,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
+        
+        // Debug: Log the first customer to verify all fields are included
+        if (index === 0) {
+          console.log('Sample customer data being imported:', customerWithMeta);
+          console.log('Field mapping:', fieldMapping);
+        }
+        
+        return customerWithMeta;
       });
 
       // Batch insert customers with upsert to handle duplicates
@@ -167,14 +194,21 @@ export function CustomerImport() {
       const errors: any[] = [];
 
       for (let i = 0; i < customers.length; i += batchSize) {
-        const batch = customers.slice(i, i + batchSize);
+        const rawBatch = customers.slice(i, i + batchSize);
+        
+        // Deduplicate within the batch to prevent "cannot affect row a second time" error
+        const batch = deduplicateBatch(rawBatch);
+        
+        // Track how many were deduplicated within this batch
+        const batchDuplicatesRemoved = rawBatch.length - batch.length;
+        totalDuplicates += batchDuplicatesRemoved;
         
         try {
-          // Use upsert to handle duplicates gracefully
+          // Use upsert to handle duplicates gracefully with the correct constraint
           const { data, error } = await supabase
             .from('customers')
             .upsert(batch as any, { 
-              onConflict: 'email,user_id',
+              onConflict: 'user_id,email',
               ignoreDuplicates: false 
             })
             .select('id');
@@ -182,8 +216,13 @@ export function CustomerImport() {
           if (error) {
             console.error('Batch insert error:', error);
             
-            // If it's a constraint error, try individual inserts to identify duplicates
-            if (error.code === '23505') {
+            // Handle specific error cases
+            if (error.code === '21000') {
+              // This error should not occur anymore due to batch deduplication,
+              // but if it does, it means there are still duplicates in the batch
+              throw new Error(`Duplicate entries found within the same batch. This indicates a data issue in your CSV file.`);
+            } else if (error.code === '23505') {
+              // If it's a constraint error, try individual inserts to identify duplicates
               let batchInserted = 0;
               let batchDuplicates = 0;
               

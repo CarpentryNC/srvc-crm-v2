@@ -246,25 +246,36 @@ export function csvRowToCustomer(
 
   Object.keys(mapping).forEach(csvColumn => {
     const customerField = mapping[csvColumn];
-    let value = row[csvColumn]?.trim() || '';
+    let value: string | null = row[csvColumn]?.trim() || '';
 
     // Apply field-specific formatting
     switch (customerField) {
       case 'email':
-        value = value.toLowerCase();
+        if (value) {
+          value = value.toLowerCase();
+        } else {
+          value = null;
+        }
         break;
       case 'phone':
-        value = formatPhone(value);
+        if (value) {
+          value = formatPhone(value);
+          if (!value) value = null; // formatPhone might return empty string
+        } else {
+          value = null;
+        }
         break;
       case 'first_name':
       case 'last_name':
-        value = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+        if (value) {
+          value = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+        }
         break;
     }
 
-    if (value) {
-      customer[customerField] = value;
-    }
+    // Always set the field if it's mapped, regardless of whether it's empty
+    // Use null for empty values to maintain database consistency
+    customer[customerField] = value || null;
   });
 
   return customer;
