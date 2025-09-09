@@ -10,7 +10,8 @@ import {
   PhoneIcon,
   EnvelopeIcon,
   MapPinIcon,
-  EllipsisVerticalIcon
+  EllipsisVerticalIcon,
+  DocumentArrowUpIcon
 } from '@heroicons/react/24/outline';
 import { useCustomers } from '../../hooks/useCustomers';
 import type { Customer, CustomerListView, CustomerSortField, CustomerSortOrder } from '../../types/customer';
@@ -163,13 +164,22 @@ export function CustomerList({ onCustomerClick }: CustomerListProps) {
           )}
         </div>
         
-        <Link
-          to="/customers/new"
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          Add Customer
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            to="/customers/import"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            <DocumentArrowUpIcon className="h-5 w-5 mr-2" />
+            Import CSV
+          </Link>
+          <Link
+            to="/customers/new"
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <PlusIcon className="h-5 w-5 mr-2" />
+            Add Customer
+          </Link>
+        </div>
       </div>
 
       {/* Search and Controls */}

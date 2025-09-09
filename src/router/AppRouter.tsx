@@ -8,6 +8,7 @@ import CustomerList from '../components/customers/CustomerList';
 import CustomerForm from '../components/customers/CustomerForm';
 import CustomerDetail from '../components/customers/CustomerDetail';
 import CustomerEdit from '../components/customers/CustomerEdit';
+import { CustomerImport } from '../components/customers/CustomerImport';
 import { routes } from './routes';
 
 // Placeholder components for routes that don't exist yet
@@ -60,6 +61,17 @@ export function AppRouter() {
               <ProtectedRoute>
                 <Layout>
                   <CustomerForm />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.CUSTOMERS_IMPORT}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CustomerImport />
                 </Layout>
               </ProtectedRoute>
             }

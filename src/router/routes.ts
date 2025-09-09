@@ -7,6 +7,7 @@ export const routes = {
   DASHBOARD: '/dashboard',
   CUSTOMERS: '/customers',
   CUSTOMERS_NEW: '/customers/new',
+  CUSTOMERS_IMPORT: '/customers/import',
   CUSTOMERS_EDIT: '/customers/:id/edit',
   CUSTOMERS_VIEW: '/customers/:id',
   
