@@ -9,7 +9,7 @@ export interface Database {
           user_id: string
           first_name: string
           last_name: string
-          email: string
+          email?: string
           phone?: string
           company_name?: string
           address_street?: string
@@ -25,7 +25,7 @@ export interface Database {
           user_id: string
           first_name: string
           last_name: string
-          email: string
+          email?: string
           phone?: string
           company_name?: string
           address_street?: string

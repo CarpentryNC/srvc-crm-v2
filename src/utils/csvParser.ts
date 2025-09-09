@@ -1,6 +1,7 @@
 // CSV parsing utilities for customer import
 
 import type { CSVImportRow, CSVImportPreview, CSVImportValidationError } from '../types/csvImport';
+import { CUSTOMER_IMPORT_FIELDS } from '../types/csvImport';
 import type { Customer } from '../types/customer';
 
 /**
@@ -100,12 +101,17 @@ export function isValidEmail(email: string): boolean {
 }
 
 /**
- * Validate phone number format (basic validation)
+ * Validate phone number format - accepts various common formats
  */
 export function isValidPhone(phone: string): boolean {
   if (!phone) return true; // Phone is optional
-  const phoneRegex = /^[\d\s\-\(\)\+\.]{10,}$/;
-  return phoneRegex.test(phone);
+  
+  // Remove all whitespace and common separators for validation
+  const cleaned = phone.replace(/[\s\-\(\)\+\.\u200E\u200F]/g, '');
+  
+  // Must contain at least 10 digits, allow up to 15 for international
+  const digitsOnly = cleaned.replace(/\D/g, '');
+  return digitsOnly.length >= 10 && digitsOnly.length <= 15;
 }
 
 /**
@@ -114,7 +120,15 @@ export function isValidPhone(phone: string): boolean {
 export function formatPhone(phone: string): string {
   if (!phone) return '';
   // Remove all non-digit characters except + at the beginning
-  const cleaned = phone.replace(/[^\d+]/g, '');
+  let cleaned = phone.replace(/[\s\-\(\)\.\u200E\u200F]/g, '');
+  
+  // Keep + only at the beginning
+  if (cleaned.startsWith('+')) {
+    cleaned = '+' + cleaned.slice(1).replace(/\+/g, '');
+  } else {
+    cleaned = cleaned.replace(/\+/g, '');
+  }
+  
   return cleaned;
 }
 
@@ -128,17 +142,42 @@ export function validateCustomerRow(
 ): CSVImportValidationError[] {
   const errors: CSVImportValidationError[] = [];
 
-  // Check required fields
-  const requiredFields = ['first_name', 'last_name', 'email'];
+  // Check required fields from configuration
+  const requiredFields = CUSTOMER_IMPORT_FIELDS.filter(field => field.required).map(field => field.key);
   
+  // Get values for validation
+  const getFieldValue = (fieldKey: string) => {
+    const csvColumn = Object.keys(mapping).find(key => mapping[key] === fieldKey);
+    return csvColumn ? (row[csvColumn]?.trim() || '') : '';
+  };
+
+  const firstName = getFieldValue('first_name');
+  const lastName = getFieldValue('last_name');
+  const companyName = getFieldValue('company_name');
+
   requiredFields.forEach(field => {
     const csvColumn = Object.keys(mapping).find(key => mapping[key] === field);
-    if (!csvColumn || !row[csvColumn]?.trim()) {
+    const value = csvColumn ? (row[csvColumn]?.trim() || '') : '';
+    
+    if (!value) {
+      let message = `${field.replace('_', ' ')} is required`;
+      
+      // Provide helpful suggestions for missing names
+      if (field === 'first_name' && !firstName && companyName) {
+        message = `First name is required. Consider using company name "${companyName}" or "N/A" as placeholder.`;
+      } else if (field === 'last_name' && !lastName && (firstName || companyName)) {
+        if (firstName && companyName) {
+          message = `Last name is required. Consider using company name "${companyName}" or "N/A" as placeholder.`;
+        } else if (firstName) {
+          message = `Last name is required for "${firstName}". Consider using "N/A" as placeholder.`;
+        }
+      }
+      
       errors.push({
         row: rowIndex,
         field,
-        value: csvColumn ? (row[csvColumn] || '') : '',
-        message: `${field.replace('_', ' ')} is required`
+        value,
+        message
       });
     }
   });

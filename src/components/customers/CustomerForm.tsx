@@ -57,9 +57,8 @@ export function CustomerForm({ customer, onSuccess, onCancel }: CustomerFormProp
       newErrors.last_name = 'Last name must be 100 characters or less';
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(formData.email)) {
+    // Email is optional, but if provided must be valid
+    if (formData.email.trim() && !/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
     }
 
@@ -223,7 +222,7 @@ export function CustomerForm({ customer, onSuccess, onCancel }: CustomerFormProp
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Email Address *
+                  Email Address <span className="text-gray-400">(optional)</span>
                 </label>
                 <input
                   type="email"
@@ -232,7 +231,7 @@ export function CustomerForm({ customer, onSuccess, onCancel }: CustomerFormProp
                   className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                     errors.email ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'
                   }`}
-                  placeholder="Enter email address"
+                  placeholder="Enter email address (optional)"
                 />
                 {errors.email && (
                   <p className="mt-1 text-sm text-red-600">{errors.email}</p>

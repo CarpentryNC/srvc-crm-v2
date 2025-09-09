@@ -52,7 +52,7 @@ export function CustomerList({ onCustomerClick }: CustomerListProps) {
       filtered = customers.filter(customer => 
         customer.first_name.toLowerCase().includes(search) ||
         customer.last_name.toLowerCase().includes(search) ||
-        customer.email.toLowerCase().includes(search) ||
+        customer.email?.toLowerCase().includes(search) ||
         customer.company_name?.toLowerCase().includes(search) ||
         customer.phone?.includes(search)
       );
@@ -348,10 +348,12 @@ function CustomerCard({ customer, onClick }: { customer: Customer; onClick?: (cu
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-            <EnvelopeIcon className="h-4 w-4 mr-2" />
-            {customer.email}
-          </div>
+          {customer.email && (
+            <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+              <EnvelopeIcon className="h-4 w-4 mr-2" />
+              {customer.email}
+            </div>
+          )}
           {customer.phone && (
             <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
               <PhoneIcon className="h-4 w-4 mr-2" />
@@ -449,7 +451,7 @@ function CustomerTable({
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                {customer.email}
+                {customer.email || '-'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                 {customer.company_name || '-'}

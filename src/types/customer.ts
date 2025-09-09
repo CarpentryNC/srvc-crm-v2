@@ -9,7 +9,7 @@ export interface Customer {
   // Customer Information
   first_name: string;
   last_name: string;
-  email: string;
+  email?: string;
   phone?: string;
   company_name?: string;
   
@@ -26,7 +26,7 @@ export interface Customer {
 export interface CustomerInput {
   first_name: string;
   last_name: string;
-  email: string;
+  email?: string;
   phone?: string;
   company_name?: string;
   address_street?: string;

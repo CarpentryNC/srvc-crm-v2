@@ -1,61 +1,164 @@
-# NCC CRM v2 - AI-Powered CRM with Stripe Integration
+# SRVC CRM v2 - AI Coding Assistant Instructions
 
-## Project Overview
-React TypeScript CRM application with Supabase backend and dual Stripe integration for subscription management and customer payments.
+## Project Architecture
 
-## Development Progress
-- [x] Create .github directory and copilot-instructions.md
-- [x] Get project setup information  
-- [x] Scaffold fresh CRM project
-- [x] Setup Supabase integration
-- [x] Setup Stripe integration with placeholders
-- [x] Create clean component architecture
-- [x] Install dependencies and compile
-- [x] Create README with Stripe setup instructions
+**Modern React TypeScript CRM** with Supabase backend featuring customer management, job tracking, quotes/invoices, and dual Stripe integration.
 
-## ✅ Setup Complete!
+**Tech Stack:** React 19 + TypeScript + Vite + Tailwind CSS + Supabase + Stripe  
+**Status:** Phase 2 Complete (Customer Management) → Phase 3 Next (Jobs Management)
 
-The fresh CRM v2 codebase is ready! Key features implemented:
+## Critical Development Patterns
 
-### ✨ Clean Architecture
-- **Organized folder structure** with components, hooks, lib, types, pages
-- **TypeScript throughout** with proper type definitions
-- **Tailwind CSS** with custom component classes
-- **Modern React patterns** with hooks and context
+### Authentication Flow (useAuth Hook Pattern)
+```typescript
+// All components requiring auth MUST use this pattern
+const { user, loading, signIn, signOut } = useAuth();
+if (loading) return <LoadingSpinner />;
+if (!user) return <LoginForm />;
+```
 
-### 🔐 Authentication System
-- **Supabase Auth integration** with sign up/sign in forms
-- **Protected routes** and user context
-- **Row Level Security** policies for data isolation
+- **Context Provider:** `src/hooks/useAuth.tsx` wraps entire app
+- **Protected Routes:** Use `<ProtectedRoute>` wrapper in `AppRouter.tsx`
+- **User State:** Always check `loading` before `user` to prevent auth flashes
 
-### 💳 Stripe Integration Ready
-- **Dual payment system** for B2B subscriptions and B2C customer payments
-- **Subscription plans** configuration with pricing tiers
-- **Payment processing** setup with proper type safety
-- **Environment-based** configuration with placeholders
+### Database Hook Architecture (Critical Pattern)
+```typescript
+// All data hooks follow this exact structure - see useCustomers.ts
+export function useCustomers() {
+  const { user } = useAuth();
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Real-time subscriptions for live updates
+  useEffect(() => {
+    if (!user) return;
+    const subscription = supabase
+      .channel('customers')
+      .on('postgres_changes', { ... })
+      .subscribe();
+    return () => subscription.unsubscribe();
+  }, [user]);
+}
+```
 
-### 🏗️ Database Schema
-- **Complete CRM tables** (customers, jobs, quotes, invoices)
-- **Subscription management** tables for SaaS billing
-- **Proper relationships** and constraints
-- **RLS policies** for security
+**Key Requirements:**
+- Always include `user` dependency checks
+- Use Supabase real-time subscriptions for live data
+- Follow consistent error handling patterns
+- Include RLS-aware queries with `user_id` filters
 
-### 🎨 UI Components
-- **Clean, modern design** with professional styling
-- **Responsive layout** with sidebar navigation
-- **Dashboard with stats** and quick actions
-- **Configuration status** indicators
+### Type Safety Architecture
+```typescript
+// Database types are SOURCE OF TRUTH - never modify manually
+// Generate via: supabase gen types typescript --project-id=xxx
+export type Customer = Database['public']['Tables']['customers']['Row'];
+export type CustomerInput = Database['public']['Tables']['customers']['Insert'];
+```
 
-### 📚 Documentation
-- **Comprehensive README** with setup instructions
-- **Stripe account** setup guide
-- **Database migration** scripts
-- **Environment configuration** examples
+- **Database Types:** `src/types/database.ts` (auto-generated from Supabase)
+- **Feature Types:** `src/types/customer.ts`, `src/types/csvImport.ts` (business logic)
+- **Always use `optional` for nullable DB fields** (e.g., `email?: string`)
 
-## Next Steps
-1. Configure Supabase project (database setup)
-2. Create Stripe account and get API keys
-3. Update environment variables
-4. Start building custom CRM features!
+### Component Structure (Critical Organization)
+```bash
+src/components/
+├── layout/              # Layout components (Dashboard, Sidebar, Header)
+├── customers/           # Customer feature components
+│   ├── CustomerList.tsx       # Main listing with grid/table views
+│   ├── CustomerForm.tsx       # Create/edit forms with validation
+│   ├── CustomerDetail.tsx     # Detail view with comprehensive info
+│   └── CustomerImport.tsx     # Multi-step CSV import workflow
+└── ui/                  # Reusable UI components
+```
 
-The codebase is production-ready and follows best practices for maintainability and scalability.
+**Component Conventions:**
+- Export default component function (not arrow functions)
+- Use TypeScript interfaces for all props
+- Include loading and error states
+- Follow dark mode patterns with `dark:` classes
+
+## Supabase Integration Patterns
+
+### Row Level Security (RLS) - CRITICAL
+```sql
+-- ALL tables MUST include user_id and RLS policies
+CREATE POLICY "Users can access own data" ON customers 
+  FOR ALL USING (auth.uid() = user_id);
+```
+
+- **Database queries:** Always filter by `user_id = user.id`
+- **Migrations:** Use numbered format `YYYYMMDDHHMMSS_description.sql`
+- **Edge Functions:** Use service role key to bypass RLS for bulk operations
+
+### CSV Import Architecture (Reference Implementation)
+```typescript
+// Multi-step workflow: upload → mapping → preview → processing → results
+// Frontend: CustomerImport.tsx (FormData upload)
+// Backend: supabase/functions/import-customers/index.ts (multipart processing)
+```
+
+**Key Features:**
+- Multipart/form-data file uploads via Edge Functions
+- Auto-mapping of common CSV fields
+- Real-time validation with detailed error reporting
+- Batch processing (500 rows) for performance
+
+## Development Commands
+
+### Essential Development Workflow
+```bash
+# Local development with hot reload
+npm run dev                    # Start Vite dev server (port 5174)
+
+# Supabase local development
+supabase start                 # Start local Supabase (API: 54321, Studio: 54323)
+supabase db push              # Apply migrations to local DB
+supabase status               # Check service status
+
+# Database operations
+supabase db reset             # Reset local DB with migrations
+supabase functions deploy import-customers  # Deploy Edge Functions
+
+# Build and deployment
+npm run build                 # TypeScript compilation + Vite build
+npm run preview               # Preview production build
+```
+
+### Environment Configuration
+```bash
+# Required environment variables (.env)
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+```
+
+## Current Implementation Status
+
+### ✅ Completed Features
+- **Customer Management:** Full CRUD with search, filtering, grid/table views
+- **CSV Import:** Professional multi-step import with Edge Function processing
+- **Authentication:** Supabase Auth with protected routes and session management
+- **Dashboard:** Responsive layout with stats, navigation, and dark mode
+- **Real-time Updates:** Live data synchronization across all components
+
+### � Next Phase (Jobs Management)
+- Create `useJobs.ts` hook following `useCustomers.ts` pattern
+- Build job CRUD components in `src/components/jobs/`
+- Link jobs to customers via `customer_id` foreign key
+- Implement job status workflow (pending → in_progress → completed)
+
+## Critical Development Rules
+
+1. **Always use hooks for data:** Never call Supabase directly in components
+2. **Type everything:** Use generated database types + feature-specific interfaces
+3. **Include loading states:** Every data operation needs loading/error handling
+4. **Test auth flows:** Verify protected routes and user state management
+5. **Follow RLS patterns:** All database access must be user-scoped
+6. **Use real-time subscriptions:** For live data updates across components
+
+## File Import Reference
+- **Edge Function deployment:** `supabase functions deploy import-customers`
+- **Multipart processing:** See `getCsvBuffer()` in import-customers/index.ts
+- **Frontend upload:** FormData with Bearer token authentication
+- **Email optional:** Recent schema change allows null emails in customers table

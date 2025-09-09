@@ -66,7 +66,7 @@ export const CUSTOMER_IMPORT_FIELDS: CSVImportField[] = [
   {
     key: 'email',
     label: 'Email',
-    required: true,
+    required: false,
     type: 'email',
     example: 'john.smith@example.com'
   },
