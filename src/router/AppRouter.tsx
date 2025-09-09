@@ -9,12 +9,12 @@ import { routes } from './routes';
 // Placeholder components for routes that don't exist yet
 function ComingSoon({ title }: { title: string }) {
   return (
-    <div className="text-center py-12">
-      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+    <div className="text-center py-12 animate-slideUp">
+      <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
         <span className="text-2xl">🚧</span>
       </div>
-      <h2 className="text-xl font-semibold text-gray-900 mb-2">{title}</h2>
-      <p className="text-gray-600">This feature is coming soon!</p>
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">{title}</h2>
+      <p className="text-gray-600 dark:text-gray-400">This feature is coming soon!</p>
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
+import { Breadcrumb } from './Breadcrumb';
+import { PageTransition } from './PageTransition';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -23,7 +25,15 @@ export function Layout({ children }: LayoutProps) {
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              {children}
+              {/* Breadcrumb Navigation */}
+              <div className="mb-6">
+                <Breadcrumb />
+              </div>
+              
+              {/* Page Content with Transitions */}
+              <PageTransition>
+                {children}
+              </PageTransition>
             </div>
           </div>
         </main>

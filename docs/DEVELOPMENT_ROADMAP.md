@@ -59,7 +59,7 @@ src/pages/
 - [x] Add header with search functionality
 - [x] Create dashboard stat cards (customers, jobs, revenue)
 - [x] Add recent activity feed
-- [ ] Implement dark/light mode toggle
+- [x] Implement dark/light mode toggle
 
 #### **Priority 1.2: Basic Routing System**
 ```bash
@@ -75,8 +75,8 @@ src/router/
 **Tasks:**
 - [x] Set up React Router with protected routes
 - [x] Create route guards for authentication
-- [ ] Implement breadcrumb navigation
-- [ ] Add page transitions and loading states
+- [x] Implement breadcrumb navigation
+- [x] Add page transitions and loading states
 
 ### **Phase 2: Customer Management (Week 2-3)**
 
