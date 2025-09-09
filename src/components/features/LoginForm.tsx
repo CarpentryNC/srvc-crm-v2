@@ -16,15 +16,13 @@ export function LoginForm() {
     setError(null)
 
     try {
-      const { error } = isSignUp 
-        ? await signUp(email, password)
-        : await signIn(email, password)
-
-      if (error) {
-        setError(error.message)
+      if (isSignUp) {
+        await signUp(email, password)
+      } else {
+        await signIn(email, password)
       }
-    } catch (err) {
-      setError('An unexpected error occurred')
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred')
     } finally {
       setLoading(false)
     }
