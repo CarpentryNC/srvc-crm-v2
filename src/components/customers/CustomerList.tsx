@@ -69,8 +69,8 @@ export function CustomerList({ onCustomerClick }: CustomerListProps) {
           bValue = `${b.last_name} ${b.first_name}`.toLowerCase();
           break;
         case 'email':
-          aValue = a.email.toLowerCase();
-          bValue = b.email.toLowerCase();
+          aValue = a.email?.toLowerCase() || '';
+          bValue = b.email?.toLowerCase() || '';
           break;
         case 'company':
           aValue = a.company_name?.toLowerCase() || '';

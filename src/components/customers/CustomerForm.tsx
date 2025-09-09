@@ -58,7 +58,7 @@ export function CustomerForm({ customer, onSuccess, onCancel }: CustomerFormProp
     }
 
     // Email is optional, but if provided must be valid
-    if (formData.email.trim() && !/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(formData.email)) {
+    if (formData.email && formData.email.trim() && !/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
     }
 
