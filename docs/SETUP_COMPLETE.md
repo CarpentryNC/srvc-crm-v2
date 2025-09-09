@@ -125,9 +125,32 @@ git clone backup_file.bundle recovered-repo
 ## 🎯 **Next Steps**
 
 1. **✅ Complete**: Test backup and restore procedures
-2. **📝 TODO**: Set up cron jobs for automated backups
+2. **✅ Complete**: Set up cron jobs for automated backups
 3. **📝 TODO**: Configure production environment variables
 4. **📝 TODO**: Set up monitoring alerts (optional)
 5. **📝 TODO**: Train team members on emergency procedures
 
 **Your CRM is now enterprise-ready with comprehensive backup and security! 🎉**
+
+---
+
+## 🕒 **Automated Backup Schedule**
+
+**✅ ACTIVE CRON JOBS:**
+- **🗄️ Database backup**: Daily at 2:00 AM
+- **🌐 Git backup**: Daily at 6:00 PM  
+- **📦 Full backup**: Sundays at 1:00 AM
+- **📁 Logs**: Stored in `logs/backup.log`
+
+**To monitor backups:**
+```bash
+# View backup logs
+tail -f logs/backup.log
+
+# Check cron status
+crontab -l
+
+# Manual backup test
+./scripts/backup-db.sh development
+./scripts/git-backup.sh
+```
