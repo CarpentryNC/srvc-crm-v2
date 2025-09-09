@@ -9,6 +9,9 @@ import CustomerForm from '../components/customers/CustomerForm';
 import CustomerDetail from '../components/customers/CustomerDetail';
 import CustomerEdit from '../components/customers/CustomerEdit';
 import { CustomerImport } from '../components/customers/CustomerImport';
+import JobList from '../components/jobs/JobList';
+import JobForm from '../components/jobs/JobForm';
+import JobDetail from '../components/jobs/JobDetail';
 import { routes } from './routes';
 
 // Placeholder components for routes that don't exist yet
@@ -104,7 +107,40 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <ComingSoon title="Job Management" />
+                  <JobList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.JOBS_NEW}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <JobForm />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.JOBS_VIEW}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <JobDetail />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.JOBS_EDIT}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <JobForm />
                 </Layout>
               </ProtectedRoute>
             }
