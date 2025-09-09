@@ -36,6 +36,20 @@ export interface CSVImportResult {
   errorCount: number;
   errors: CSVImportValidationError[];
   duplicates?: number;
+  skippedRows?: number;
+}
+
+export interface CSVImportValidationResult {
+  validRows: CSVImportRow[];
+  invalidRows: CSVImportRow[];
+  errors: CSVImportValidationError[];
+  validRowIndices: number[];
+  invalidRowIndices: number[];
+}
+
+export interface CSVImportOptions {
+  importOnlyValid: boolean;
+  skipDuplicates: boolean;
 }
 
 export interface CSVImportStats {

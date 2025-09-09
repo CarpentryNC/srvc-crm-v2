@@ -1,6 +1,11 @@
 // CSV parsing utilities for customer import
 
-import type { CSVImportRow, CSVImportPreview, CSVImportValidationError } from '../types/csvImport';
+import type { 
+  CSVImportRow, 
+  CSVImportPreview, 
+  CSVImportValidationError, 
+  CSVImportValidationResult 
+} from '../types/csvImport';
 import { CUSTOMER_IMPORT_FIELDS } from '../types/csvImport';
 import type { Customer } from '../types/customer';
 
@@ -106,8 +111,16 @@ export function isValidEmail(email: string): boolean {
 export function isValidPhone(phone: string): boolean {
   if (!phone) return true; // Phone is optional
   
+  // Remove Unicode control characters and invisible characters
+  const normalizedPhone = phone.replace(/[\u200B-\u200D\uFEFF\u202C\u202D\u202E\u202F\u200E\u200F]/g, '').trim();
+  
+  // Check for masked/placeholder numbers (containing * or x)
+  if (normalizedPhone.includes('*') || normalizedPhone.toLowerCase().includes('x')) {
+    return false;
+  }
+  
   // Remove all whitespace and common separators for validation
-  const cleaned = phone.replace(/[\s\-\(\)\+\.\u200E\u200F]/g, '');
+  const cleaned = normalizedPhone.replace(/[\s\-\(\)\+\.]/g, '');
   
   // Must contain at least 10 digits, allow up to 15 for international
   const digitsOnly = cleaned.replace(/\D/g, '');
@@ -119,8 +132,17 @@ export function isValidPhone(phone: string): boolean {
  */
 export function formatPhone(phone: string): string {
   if (!phone) return '';
+  
+  // Remove Unicode control characters and invisible characters
+  const normalizedPhone = phone.replace(/[\u200B-\u200D\uFEFF\u202C\u202D\u202E\u202F\u200E\u200F]/g, '').trim();
+  
+  // Don't format masked/placeholder numbers
+  if (normalizedPhone.includes('*') || normalizedPhone.toLowerCase().includes('x')) {
+    return ''; // Return empty string for invalid masked numbers
+  }
+  
   // Remove all non-digit characters except + at the beginning
-  let cleaned = phone.replace(/[\s\-\(\)\.\u200E\u200F]/g, '');
+  let cleaned = normalizedPhone.replace(/[\s\-\(\)\.]/g, '');
   
   // Keep + only at the beginning
   if (cleaned.startsWith('+')) {
@@ -300,6 +322,41 @@ export function generateSampleCSV(): string {
   ].join('\n');
 
   return csvContent;
+}
+
+/**
+ * Validate all rows and separate valid from invalid ones
+ */
+export function validateAndSeparateRows(
+  rows: CSVImportRow[],
+  mapping: Record<string, string>
+): CSVImportValidationResult {
+  const validRows: CSVImportRow[] = [];
+  const invalidRows: CSVImportRow[] = [];
+  const errors: CSVImportValidationError[] = [];
+  const validRowIndices: number[] = [];
+  const invalidRowIndices: number[] = [];
+
+  rows.forEach((row, index) => {
+    const rowErrors = validateCustomerRow(row, mapping, index + 1);
+    
+    if (rowErrors.length === 0) {
+      validRows.push(row);
+      validRowIndices.push(index);
+    } else {
+      invalidRows.push(row);
+      invalidRowIndices.push(index);
+      errors.push(...rowErrors);
+    }
+  });
+
+  return {
+    validRows,
+    invalidRows,
+    errors,
+    validRowIndices,
+    invalidRowIndices
+  };
 }
 
 /**

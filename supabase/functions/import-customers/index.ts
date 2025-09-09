@@ -21,7 +21,7 @@ const supabase = createClient(
 async function getCsvBuffer(req: Request): Promise<Uint8Array> {
   const contentType = req.headers.get("content-type");
   if (!contentType?.includes("multipart/form-data")) {
-    throw new Error("Request must be multipart/form-data with a "file" field.");
+    throw new Error("Request must be multipart/form-data with a \"file\" field.");
   }
 
   // Use the native FormData API – Deno parses multipart bodies automatically.

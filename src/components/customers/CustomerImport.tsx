@@ -11,7 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
-import { parseCSV, validateCustomerRow, downloadSampleCSV } from '../../utils/csvParser';
+import { parseCSV, validateCustomerRow, downloadSampleCSV, validateAndSeparateRows, csvRowToCustomer } from '../../utils/csvParser';
 import { CUSTOMER_IMPORT_FIELDS } from '../../types/csvImport';
 import type { 
   CSVImportPreview, 
@@ -28,12 +28,12 @@ export function CustomerImport() {
   
   const [currentStep, setCurrentStep] = useState<ImportStep>('upload');
   const [csvData, setCsvData] = useState<CSVImportPreview | null>(null);
-  const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
   const [validationErrors, setValidationErrors] = useState<CSVImportValidationError[]>([]);
   const [importResult, setImportResult] = useState<CSVImportResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [importOnlyValid, setImportOnlyValid] = useState(false);
 
   // Handle file upload
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -57,7 +57,6 @@ export function CustomerImport() {
       }
 
       setCsvData(preview);
-      setOriginalFile(file); // Store the original file for upload
       setCurrentStep('mapping');
       
       // Auto-map common field names
@@ -135,51 +134,113 @@ export function CustomerImport() {
 
   // Start import process
   const handleImport = async () => {
-    if (!originalFile || !user) return;
+    if (!csvData || !user) return;
 
     setCurrentStep('importing');
     setIsLoading(true);
 
     try {
-      // Get the session token for authentication
-      const { data: { session } } = await supabase.auth.getSession();
-      const accessToken = session?.access_token;
+      let rowsToProcess = csvData.rows;
 
-      if (!accessToken) {
-        throw new Error('No valid session found');
+      // If importing only valid rows and there are validation errors
+      if (importOnlyValid && validationErrors.length > 0) {
+        const validationResult = validateAndSeparateRows(csvData.rows, fieldMapping);
+        rowsToProcess = validationResult.validRows;
       }
 
-      // Create FormData with the original CSV file
-      const formData = new FormData();
-      formData.append('file', originalFile);
-
-      // Call the edge function for bulk import
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const response = await fetch(`${supabaseUrl}/functions/v1/import-customers`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-          // Don't set Content-Type - let browser set it for multipart/form-data
-        },
-        body: formData
+      // Convert CSV rows to customer objects
+      const customers = rowsToProcess.map(row => {
+        const customer = csvRowToCustomer(row, fieldMapping);
+        return {
+          ...customer,
+          user_id: user.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Import failed');
+      // Batch insert customers with upsert to handle duplicates
+      const batchSize = 500;
+      let totalInserted = 0;
+      let totalErrors = 0;
+      let totalDuplicates = 0;
+      const errors: any[] = [];
+
+      for (let i = 0; i < customers.length; i += batchSize) {
+        const batch = customers.slice(i, i + batchSize);
+        
+        try {
+          // Use upsert to handle duplicates gracefully
+          const { data, error } = await supabase
+            .from('customers')
+            .upsert(batch as any, { 
+              onConflict: 'email,user_id',
+              ignoreDuplicates: false 
+            })
+            .select('id');
+
+          if (error) {
+            console.error('Batch insert error:', error);
+            
+            // If it's a constraint error, try individual inserts to identify duplicates
+            if (error.code === '23505') {
+              let batchInserted = 0;
+              let batchDuplicates = 0;
+              
+              for (const customer of batch) {
+                try {
+                  const { data: singleData, error: singleError } = await supabase
+                    .from('customers')
+                    .insert([customer] as any)
+                    .select('id');
+                    
+                  if (singleError) {
+                    if (singleError.code === '23505') {
+                      batchDuplicates++;
+                    } else {
+                      console.error('Single insert error:', singleError);
+                    }
+                  } else {
+                    batchInserted += singleData?.length || 0;
+                  }
+                } catch (singleErr) {
+                  console.error('Single insert exception:', singleErr);
+                }
+              }
+              
+              totalInserted += batchInserted;
+              totalDuplicates += batchDuplicates;
+            } else {
+              totalErrors += batch.length;
+              errors.push({
+                batchStart: i + 1,
+                error: error.message
+              });
+            }
+          } else {
+            totalInserted += data?.length || 0;
+          }
+        } catch (err) {
+          console.error('Batch processing error:', err);
+          totalErrors += batch.length;
+          errors.push({
+            batchStart: i + 1,
+            error: err instanceof Error ? err.message : 'Unknown error'
+          });
+        }
       }
 
-      const result = await response.json();
-      
-      // Transform the result to match our expected format
+      // Set import results
       setImportResult({
-        success: result.errors.length === 0,
-        importedCount: result.inserted,
-        errorCount: result.total - result.inserted,
-        duplicates: 0, // The new function doesn't track duplicates separately
-        errors: result.errors.map((error: any, index: number) => ({
+        success: totalErrors === 0,
+        importedCount: totalInserted,
+        errorCount: totalErrors,
+        duplicates: totalDuplicates,
+        skippedRows: importOnlyValid ? validationErrors.length : 0,
+        errors: errors.map((error, index) => ({
           row: error.batchStart || index + 1,
-          email: 'unknown',
+          field: 'unknown',
+          value: 'unknown',
           message: error.error
         }))
       });
@@ -196,7 +257,6 @@ export function CustomerImport() {
   // Reset to start over
   const handleReset = () => {
     setCsvData(null);
-    setOriginalFile(null);
     setFieldMapping({});
     setValidationErrors([]);
     setImportResult(null);
@@ -442,6 +502,24 @@ export function CustomerImport() {
                     </p>
                   )}
                 </div>
+                
+                {/* Option to import only valid rows */}
+                <div className="mt-4 border-t border-yellow-200 dark:border-yellow-800 pt-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={importOnlyValid}
+                      onChange={(e) => setImportOnlyValid(e.target.checked)}
+                      className="h-4 w-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm text-yellow-800 dark:text-yellow-200">
+                      Import only valid rows ({csvData.totalRows - validationErrors.length} of {csvData.totalRows} rows)
+                    </span>
+                  </label>
+                  <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                    Rows with validation errors will be skipped during import
+                  </p>
+                </div>
               </div>
             )}
             
@@ -450,11 +528,11 @@ export function CustomerImport() {
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
-                      {Object.values(fieldMapping).filter(Boolean).map(field => {
+                      {Object.entries(fieldMapping).filter(([, field]) => field).map(([csvCol, field]) => {
                         const fieldDef = CUSTOMER_IMPORT_FIELDS.find(f => f.key === field);
                         return (
                           <th
-                            key={field}
+                            key={csvCol}
                             className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
                           >
                             {fieldDef?.label}
@@ -495,10 +573,13 @@ export function CustomerImport() {
               </button>
               <button
                 onClick={handleImport}
-                disabled={validationErrors.length > 0}
+                disabled={validationErrors.length > 0 && !importOnlyValid}
                 className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Import {csvData.rows.length} Customers
+                {validationErrors.length > 0 && importOnlyValid 
+                  ? `Import ${csvData.totalRows - validationErrors.length} Valid Customers`
+                  : `Import ${csvData.rows.length} Customers`
+                }
               </button>
             </div>
           </div>
@@ -527,7 +608,7 @@ export function CustomerImport() {
               </h3>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {importResult.importedCount}
@@ -544,6 +625,17 @@ export function CustomerImport() {
                   </div>
                   <div className="text-sm text-red-700 dark:text-red-300">
                     Errors
+                  </div>
+                </div>
+              )}
+              
+              {importResult.skippedRows && importResult.skippedRows > 0 && (
+                <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                    {importResult.skippedRows}
+                  </div>
+                  <div className="text-sm text-orange-700 dark:text-orange-300">
+                    Validation Errors Skipped
                   </div>
                 </div>
               )}
