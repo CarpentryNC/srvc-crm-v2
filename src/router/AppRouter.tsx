@@ -4,6 +4,8 @@ import ProtectedRoute from './ProtectedRoute';
 import Layout from '../components/layout/Layout';
 import Dashboard from '../components/layout/Dashboard';
 import SimpleLandingPage from '../components/SimpleLandingPage';
+import CustomerList from '../components/customers/CustomerList';
+import CustomerForm from '../components/customers/CustomerForm';
 import { routes } from './routes';
 
 // Placeholder components for routes that don't exist yet
@@ -44,7 +46,18 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <ComingSoon title="Customer Management" />
+                  <CustomerList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.CUSTOMERS_NEW}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CustomerForm />
                 </Layout>
               </ProtectedRoute>
             }
