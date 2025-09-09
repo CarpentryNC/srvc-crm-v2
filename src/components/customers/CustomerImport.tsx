@@ -11,14 +11,13 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
-import { parseCSV, validateCustomerRow, csvRowToCustomer, downloadSampleCSV } from '../../utils/csvParser';
+import { parseCSV, validateCustomerRow, downloadSampleCSV } from '../../utils/csvParser';
 import { CUSTOMER_IMPORT_FIELDS } from '../../types/csvImport';
 import type { 
   CSVImportPreview, 
   CSVImportValidationError, 
   CSVImportResult 
 } from '../../types/csvImport';
-import type { Customer } from '../../types/customer';
 
 type ImportStep = 'upload' | 'mapping' | 'preview' | 'importing' | 'results';
 
@@ -29,6 +28,7 @@ export function CustomerImport() {
   
   const [currentStep, setCurrentStep] = useState<ImportStep>('upload');
   const [csvData, setCsvData] = useState<CSVImportPreview | null>(null);
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
   const [validationErrors, setValidationErrors] = useState<CSVImportValidationError[]>([]);
   const [importResult, setImportResult] = useState<CSVImportResult | null>(null);
@@ -57,6 +57,7 @@ export function CustomerImport() {
       }
 
       setCsvData(preview);
+      setOriginalFile(file); // Store the original file for upload
       setCurrentStep('mapping');
       
       // Auto-map common field names
@@ -134,18 +135,12 @@ export function CustomerImport() {
 
   // Start import process
   const handleImport = async () => {
-    if (!csvData || !user) return;
+    if (!originalFile || !user) return;
 
     setCurrentStep('importing');
     setIsLoading(true);
 
     try {
-      // Convert CSV rows to customer objects
-      const customers: Partial<Customer>[] = csvData.rows.map(row => ({
-        ...csvRowToCustomer(row, fieldMapping),
-        user_id: user.id
-      }));
-
       // Get the session token for authentication
       const { data: { session } } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
@@ -154,23 +149,41 @@ export function CustomerImport() {
         throw new Error('No valid session found');
       }
 
+      // Create FormData with the original CSV file
+      const formData = new FormData();
+      formData.append('file', originalFile);
+
       // Call the edge function for bulk import
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const response = await fetch(`${supabaseUrl}/functions/v1/import-customers`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`
+          // Don't set Content-Type - let browser set it for multipart/form-data
         },
-        body: JSON.stringify({ customers })
+        body: formData
       });
 
       if (!response.ok) {
-        throw new Error('Import failed');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Import failed');
       }
 
       const result = await response.json();
-      setImportResult(result);
+      
+      // Transform the result to match our expected format
+      setImportResult({
+        success: result.errors.length === 0,
+        importedCount: result.inserted,
+        errorCount: result.total - result.inserted,
+        duplicates: 0, // The new function doesn't track duplicates separately
+        errors: result.errors.map((error: any, index: number) => ({
+          row: error.batchStart || index + 1,
+          email: 'unknown',
+          message: error.error
+        }))
+      });
+      
       setCurrentStep('results');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed');
@@ -183,6 +196,7 @@ export function CustomerImport() {
   // Reset to start over
   const handleReset = () => {
     setCsvData(null);
+    setOriginalFile(null);
     setFieldMapping({});
     setValidationErrors([]);
     setImportResult(null);
