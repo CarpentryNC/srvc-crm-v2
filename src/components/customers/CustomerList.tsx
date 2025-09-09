@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   PlusIcon, 
   UserGroupIcon, 
@@ -34,6 +34,7 @@ interface CustomerListProps {
 
 export function CustomerList({ onCustomerClick }: CustomerListProps) {
   const { customers, loading, error, stats } = useCustomers();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [view, setView] = useState<CustomerListView>('grid');
   const [sortField, setSortField] = useState<CustomerSortField>('created_at');
@@ -101,6 +102,15 @@ export function CustomerList({ onCustomerClick }: CustomerListProps) {
   };
 
   // Use the helper functions from the top of the file instead of redefining them
+
+  // Handle customer click - navigate to detail view
+  const handleCustomerClick = (customer: Customer) => {
+    if (onCustomerClick) {
+      onCustomerClick(customer);
+    } else {
+      navigate(`/customers/${customer.id}`);
+    }
+  };
 
   if (loading) {
     return (
@@ -271,7 +281,7 @@ export function CustomerList({ onCustomerClick }: CustomerListProps) {
                 <CustomerCard 
                   key={customer.id} 
                   customer={customer} 
-                  onClick={onCustomerClick}
+                  onClick={handleCustomerClick}
                 />
               ))}
             </div>
@@ -282,7 +292,7 @@ export function CustomerList({ onCustomerClick }: CustomerListProps) {
                 onSort={handleSort}
                 sortField={sortField}
                 sortOrder={sortOrder}
-                onCustomerClick={onCustomerClick}
+                onCustomerClick={handleCustomerClick}
               />
             </div>
           )}

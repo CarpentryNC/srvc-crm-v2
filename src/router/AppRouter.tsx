@@ -6,6 +6,8 @@ import Dashboard from '../components/layout/Dashboard';
 import SimpleLandingPage from '../components/SimpleLandingPage';
 import CustomerList from '../components/customers/CustomerList';
 import CustomerForm from '../components/customers/CustomerForm';
+import CustomerDetail from '../components/customers/CustomerDetail';
+import CustomerEdit from '../components/customers/CustomerEdit';
 import { routes } from './routes';
 
 // Placeholder components for routes that don't exist yet
@@ -58,6 +60,28 @@ export function AppRouter() {
               <ProtectedRoute>
                 <Layout>
                   <CustomerForm />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.CUSTOMERS_VIEW}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CustomerDetail />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.CUSTOMERS_EDIT}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CustomerEdit />
                 </Layout>
               </ProtectedRoute>
             }
