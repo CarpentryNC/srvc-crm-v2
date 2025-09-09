@@ -83,7 +83,7 @@ export function CustomerImport() {
       preview.headers.forEach(header => {
         const lowerHeader = header.toLowerCase().trim();
         
-        // Common field mappings
+        // Common field mappings - check more specific patterns first
         if (lowerHeader.includes('first') && lowerHeader.includes('name')) {
           autoMapping[header] = 'first_name';
         } else if (lowerHeader.includes('last') && lowerHeader.includes('name')) {
@@ -94,14 +94,16 @@ export function CustomerImport() {
           autoMapping[header] = 'phone';
         } else if (lowerHeader.includes('company')) {
           autoMapping[header] = 'company_name';
-        } else if (lowerHeader.includes('street') || lowerHeader.includes('address')) {
-          autoMapping[header] = 'address_street';
         } else if (lowerHeader.includes('city')) {
+          // Check city first before general address
           autoMapping[header] = 'address_city';
         } else if (lowerHeader.includes('state')) {
           autoMapping[header] = 'address_state';
         } else if (lowerHeader.includes('zip') || lowerHeader.includes('postal')) {
           autoMapping[header] = 'address_zip';
+        } else if (lowerHeader.includes('street') || (lowerHeader.includes('address') && !lowerHeader.includes('city') && !lowerHeader.includes('state') && !lowerHeader.includes('zip'))) {
+          // Only map to street if it's specifically street or a generic address field
+          autoMapping[header] = 'address_street';
         } else if (lowerHeader.includes('note')) {
           autoMapping[header] = 'notes';
         }
