@@ -16,6 +16,10 @@ import RequestList from '../components/requests/RequestList';
 import RequestForm from '../components/requests/RequestForm';
 import RequestDetail from '../components/requests/RequestDetail';
 import RequestEdit from '../components/requests/RequestEdit';
+import QuoteList from '../components/quotes/QuoteList';
+import QuoteNewPage from '../components/quotes/QuoteNewPage';
+import QuoteDetailPage from '../components/quotes/QuoteDetailPage';
+import QuoteEditPage from '../components/quotes/QuoteEditPage';
 import { ResetPasswordForm } from '../components/features/ResetPasswordForm';
 import { routes } from './routes';
 
@@ -201,7 +205,40 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <ComingSoon title="Quote Management" />
+                  <QuoteList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.QUOTES_NEW}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <QuoteNewPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.QUOTES_VIEW}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <QuoteDetailPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.QUOTES_EDIT}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <QuoteEditPage />
                 </Layout>
               </ProtectedRoute>
             }

@@ -100,8 +100,11 @@ export default function QuoteConversionModal({
 
       if (updateError) throw updateError
 
-      // Navigate to quotes page (or could navigate to the new quote)
-      navigate('/quotes')
+      // Show success and navigate to the quote after a brief delay
+      setTimeout(() => {
+        navigate(`/quotes/${newQuote.id}`)
+        onClose()
+      }, 100)
 
     } catch (err) {
       console.error('Error converting to quote:', err)
