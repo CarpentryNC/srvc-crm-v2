@@ -21,6 +21,7 @@ import QuoteNewPage from '../components/quotes/QuoteNewPage';
 import QuoteDetailPage from '../components/quotes/QuoteDetailPage';
 import QuoteEditPage from '../components/quotes/QuoteEditPage';
 import ProductLibrary from '../components/products/ProductLibrary';
+import Calendar from '../components/calendar/Calendar';
 import { ResetPasswordForm } from '../components/features/ResetPasswordForm';
 import { routes } from './routes';
 
@@ -272,7 +273,7 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <ComingSoon title="Calendar & Scheduling" />
+                  <Calendar />
                 </Layout>
               </ProtectedRoute>
             }

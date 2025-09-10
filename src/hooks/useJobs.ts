@@ -137,6 +137,44 @@ export function useJobs() {
     }
   }, [user]);
 
+  // Helper function to create calendar event for job
+  const createJobCalendarEvent = useCallback(async (job: Job, customer?: any) => {
+    if (!job.scheduled_date) return;
+
+    try {
+      // Calculate end time based on estimated hours
+      const startDate = new Date(job.scheduled_date);
+      const endDate = new Date(startDate);
+      endDate.setHours(startDate.getHours() + (job.estimated_hours || 4));
+
+      // Create calendar event
+      const { error: calendarError } = await supabase
+        .from('calendar_events')
+        .insert({
+          user_id: user?.id,
+          title: job.title,
+          description: `Job: ${job.description || 'Scheduled job work'}`,
+          start_datetime: job.scheduled_date,
+          end_datetime: endDate.toISOString(),
+          event_type: 'job',
+          source_type: 'job',
+          source_id: job.id,
+          customer_id: job.customer_id,
+          status: 'scheduled',
+          priority: job.priority === 'urgent' ? 'urgent' : 'medium',
+          color: '#10B981', // Green for jobs
+          reminder_minutes: [15, 60], // 15 min and 1 hour reminders
+          notes: `Job ID: ${job.id}${customer ? ` - Customer: ${customer.first_name} ${customer.last_name}` : ''}`
+        });
+
+      if (calendarError) {
+        console.warn('Failed to create calendar event for job:', calendarError);
+      }
+    } catch (error) {
+      console.warn('Error creating calendar event for job:', error);
+    }
+  }, [user]);
+
   // Create new job
   const createJob = useCallback(async (jobData: CreateJobInput): Promise<Job | null> => {
     if (!user) throw new Error('User not authenticated');
@@ -168,6 +206,11 @@ export function useJobs() {
 
       if (createError) throw createError;
 
+      // Create calendar event if job is scheduled
+      if (data.scheduled_date) {
+        await createJobCalendarEvent(data, data.customer);
+      }
+
       // Add to local state
       setJobs(prev => [data as JobWithCustomer, ...prev]);
       
@@ -180,7 +223,7 @@ export function useJobs() {
       setError(err instanceof Error ? err.message : 'Failed to create job');
       throw err;
     }
-  }, [user, fetchStats]);
+  }, [user, fetchStats, createJobCalendarEvent]);
 
   // Create job from quote (simple wrapper for clarity)
   const createJobFromQuote = useCallback(async (quoteId: string, jobData: Omit<CreateJobInput, 'quote_id'>): Promise<Job | null> => {
@@ -238,6 +281,11 @@ export function useJobs() {
 
       if (updateError) throw updateError;
 
+      // Create calendar event if job is newly scheduled
+      if (updateData.scheduled_date && data.scheduled_date) {
+        await createJobCalendarEvent(data, data.customer);
+      }
+
       // Update local state
       setJobs(prev => 
         prev.map(job => 
@@ -254,7 +302,7 @@ export function useJobs() {
       setError(err instanceof Error ? err.message : 'Failed to update job');
       throw err;
     }
-  }, [user, fetchStats]);
+  }, [user, fetchStats, createJobCalendarEvent]);
 
   // Update job status
   const updateJobStatus = useCallback(async (statusUpdate: JobStatusUpdate): Promise<Job | null> => {
