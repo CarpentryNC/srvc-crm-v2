@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { useQuotes, type Quote, type QuoteInput } from '../../hooks/useQuotes'
+import { useQuotes, type Quote, type QuoteInput, type QuoteLineItem, type QuoteLineItemInput } from '../../hooks/useQuotes'
 import { useCustomers } from '../../hooks/useCustomers'
 
-interface QuoteLineItem {
+// Local line item interface for UI (using unitPrice instead of unit_price_cents)
+interface LocalLineItem {
   id: string
   description: string
   quantity: number
@@ -25,7 +26,14 @@ export default function QuoteBuilder({
   onSave,
   onCancel
 }: QuoteBuilderProps) {
-  const { createQuote, updateQuote, generateQuoteNumber, dollarsToCents } = useQuotes()
+  const { 
+    createQuote, 
+    updateQuote, 
+    generateQuoteNumber, 
+    dollarsToCents, 
+    saveQuoteLineItems,
+    calculateQuoteTotalsFromLineItems 
+  } = useQuotes()
   const { customers } = useCustomers()
 
   // Form state
@@ -38,8 +46,8 @@ export default function QuoteBuilder({
     valid_until: initialQuote?.valid_until || ''
   })
 
-  // Line items state
-  const [lineItems, setLineItems] = useState<QuoteLineItem[]>([
+  // Line items state (using local interface for UI)
+  const [lineItems, setLineItems] = useState<LocalLineItem[]>([
     {
       id: crypto.randomUUID(),
       description: '',
@@ -62,6 +70,23 @@ export default function QuoteBuilder({
       })
     }
   }, [initialQuote?.id, formData.quote_number, generateQuoteNumber])
+
+  // Load existing line items when editing a quote
+  useEffect(() => {
+    if (initialQuote?.quote_line_items && initialQuote.quote_line_items.length > 0) {
+      const existingLineItems: LocalLineItem[] = initialQuote.quote_line_items
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map(item => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unit_price,
+          total: item.total_amount
+        }))
+      
+      setLineItems(existingLineItems)
+    }
+  }, [initialQuote?.quote_line_items])
 
   // Calculate line item totals
   useEffect(() => {
@@ -97,7 +122,7 @@ export default function QuoteBuilder({
   }
 
   // Update line item
-  const updateLineItem = (id: string, field: keyof Omit<QuoteLineItem, 'id'>, value: string | number) => {
+  const updateLineItem = (id: string, field: keyof Omit<LocalLineItem, 'id'>, value: string | number) => {
     setLineItems(prev =>
       prev.map(item => {
         if (item.id !== id) return item
@@ -173,8 +198,24 @@ export default function QuoteBuilder({
         result = await createQuote(quoteData)
       }
 
-      if (result && onSave) {
-        onSave(result)
+      // Save line items if quote was created/updated successfully
+      if (result) {
+        const lineItemsData: QuoteLineItemInput[] = lineItems
+          .filter(item => item.description.trim())
+          .map((item, index) => ({
+            description: item.description.trim(),
+            quantity: item.quantity,
+            unit_price_cents: dollarsToCents(item.unitPrice),
+            sort_order: index + 1
+          }))
+
+        if (lineItemsData.length > 0) {
+          await saveQuoteLineItems(result.id, lineItemsData)
+        }
+
+        if (onSave) {
+          onSave(result)
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save quote')

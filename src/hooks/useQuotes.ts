@@ -2,6 +2,28 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
+// Quote line item interface
+export interface QuoteLineItem {
+  id: string
+  created_at: string
+  updated_at: string
+  quote_id: string
+  description: string
+  quantity: number
+  unit_price_cents: number
+  total_cents: number
+  unit_price: number // Generated column
+  total_amount: number // Generated column
+  sort_order: number
+}
+
+export interface QuoteLineItemInput {
+  description: string
+  quantity: number
+  unit_price_cents: number
+  sort_order?: number
+}
+
 // Quote types based on database schema
 export interface Quote {
   id: string
@@ -47,6 +69,8 @@ export interface Quote {
     recommendations?: string
     estimated_cost?: number
   }
+  // Line items
+  quote_line_items?: QuoteLineItem[]
 }
 
 export interface QuoteInput {
@@ -108,6 +132,16 @@ export function useQuotes() {
               findings,
               recommendations,
               estimated_cost
+            ),
+            quote_line_items(
+              id,
+              description,
+              quantity,
+              unit_price_cents,
+              total_cents,
+              unit_price,
+              total_amount,
+              sort_order
             )
           `)
           .eq('user_id', user.id)
@@ -186,6 +220,16 @@ export function useQuotes() {
             findings,
             recommendations,
             estimated_cost
+          ),
+          quote_line_items(
+            id,
+            description,
+            quantity,
+            unit_price_cents,
+            total_cents,
+            unit_price,
+            total_amount,
+            sort_order
           )
         `)
         .single()
@@ -236,6 +280,16 @@ export function useQuotes() {
             findings,
             recommendations,
             estimated_cost
+          ),
+          quote_line_items(
+            id,
+            description,
+            quantity,
+            unit_price_cents,
+            total_cents,
+            unit_price,
+            total_amount,
+            sort_order
           )
         `)
         .single()
@@ -283,6 +337,16 @@ export function useQuotes() {
             findings,
             recommendations,
             estimated_cost
+          ),
+          quote_line_items(
+            id,
+            description,
+            quantity,
+            unit_price_cents,
+            total_cents,
+            unit_price,
+            total_amount,
+            sort_order
           )
         `)
         .eq('id', id)
@@ -396,6 +460,127 @@ export function useQuotes() {
     }
   }
 
+  // Line Items Management Functions
+  
+  // Create line item
+  const createLineItem = useCallback(async (quoteId: string, lineItemData: QuoteLineItemInput): Promise<QuoteLineItem | null> => {
+    if (!user) return null
+
+    try {
+      setError(null)
+
+      const { data, error: insertError } = await supabase
+        .from('quote_line_items')
+        .insert({
+          quote_id: quoteId,
+          ...lineItemData
+        })
+        .select('*')
+        .single()
+
+      if (insertError) throw insertError
+      return data
+    } catch (err) {
+      console.error('Error creating line item:', err)
+      setError(err instanceof Error ? err.message : 'Failed to create line item')
+      return null
+    }
+  }, [user])
+
+  // Update line item
+  const updateLineItem = useCallback(async (lineItemId: string, updates: Partial<QuoteLineItemInput>): Promise<QuoteLineItem | null> => {
+    if (!user) return null
+
+    try {
+      setError(null)
+
+      const { data, error: updateError } = await supabase
+        .from('quote_line_items')
+        .update(updates)
+        .eq('id', lineItemId)
+        .select('*')
+        .single()
+
+      if (updateError) throw updateError
+      return data
+    } catch (err) {
+      console.error('Error updating line item:', err)
+      setError(err instanceof Error ? err.message : 'Failed to update line item')
+      return null
+    }
+  }, [user])
+
+  // Delete line item
+  const deleteLineItem = useCallback(async (lineItemId: string): Promise<boolean> => {
+    if (!user) return false
+
+    try {
+      setError(null)
+
+      const { error: deleteError } = await supabase
+        .from('quote_line_items')
+        .delete()
+        .eq('id', lineItemId)
+
+      if (deleteError) throw deleteError
+      return true
+    } catch (err) {
+      console.error('Error deleting line item:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete line item')
+      return false
+    }
+  }, [user])
+
+  // Save multiple line items (for bulk operations)
+  const saveQuoteLineItems = useCallback(async (quoteId: string, lineItems: QuoteLineItemInput[]): Promise<QuoteLineItem[] | null> => {
+    if (!user) return null
+
+    try {
+      setError(null)
+
+      // First, delete existing line items
+      await supabase
+        .from('quote_line_items')
+        .delete()
+        .eq('quote_id', quoteId)
+
+      // Then insert new line items
+      const lineItemsWithQuoteId = lineItems.map((item, index) => ({
+        quote_id: quoteId,
+        ...item,
+        sort_order: item.sort_order || index + 1
+      }))
+
+      const { data, error: insertError } = await supabase
+        .from('quote_line_items')
+        .insert(lineItemsWithQuoteId)
+        .select('*')
+
+      if (insertError) throw insertError
+      return data
+    } catch (err) {
+      console.error('Error saving line items:', err)
+      setError(err instanceof Error ? err.message : 'Failed to save line items')
+      return null
+    }
+  }, [user])
+
+  // Calculate totals from line items
+  const calculateQuoteTotalsFromLineItems = (lineItems: QuoteLineItem[], taxRate: number = 0) => {
+    const subtotalCents = lineItems.reduce((sum, item) => sum + item.total_cents, 0)
+    const taxCents = Math.round(subtotalCents * (taxRate / 100))
+    const totalCents = subtotalCents + taxCents
+
+    return {
+      subtotalCents,
+      taxCents,
+      totalCents,
+      subtotal: centsToDollars(subtotalCents),
+      taxAmount: centsToDollars(taxCents),
+      total: centsToDollars(totalCents)
+    }
+  }
+
   return {
     quotes,
     loading,
@@ -409,6 +594,12 @@ export function useQuotes() {
     centsToDollars,
     calculateTotals,
     getQuotesByStatus,
-    getQuoteStats
+    getQuoteStats,
+    // Line items functions
+    createLineItem,
+    updateLineItem,
+    deleteLineItem,
+    saveQuoteLineItems,
+    calculateQuoteTotalsFromLineItems
   }
 }
