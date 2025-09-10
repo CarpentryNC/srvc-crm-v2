@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useRequests } from '../../hooks/useRequests'
 import type { Request } from '../../hooks/useRequests'
 import PhotoUpload from './PhotoUpload'
+import AssessmentModal from './AssessmentModal'
+import QuoteConversionModal from './QuoteConversionModal'
 
 export default function RequestDetail() {
   const { id } = useParams<{ id: string }>()
@@ -12,6 +14,9 @@ export default function RequestDetail() {
   const [request, setRequest] = useState<Request | null>(null)
   const [loading, setLoading] = useState(true)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [showAssessmentModal, setShowAssessmentModal] = useState(false)
+  const [selectedAssessment, setSelectedAssessment] = useState<any>(null)
+  const [showQuoteModal, setShowQuoteModal] = useState(false)
 
   // Fetch request details
   useEffect(() => {
@@ -191,12 +196,18 @@ export default function RequestDetail() {
             </div>
 
             {request.requires_assessment && (
-              <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium">
+              <button 
+                onClick={() => setShowAssessmentModal(true)}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium"
+              >
                 Schedule Assessment
               </button>
             )}
 
-            <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium">
+            <button 
+              onClick={() => setShowQuoteModal(true)}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium"
+            >
               Convert to Quote
             </button>
 
@@ -368,6 +379,18 @@ export default function RequestDetail() {
                         <span className="text-gray-900">${assessment.estimated_cost.toLocaleString()}</span>
                       </div>
                     )}
+                    
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => {
+                          setSelectedAssessment(assessment)
+                          setShowAssessmentModal(true)
+                        }}
+                        className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                      >
+                        Edit Assessment
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -375,7 +398,10 @@ export default function RequestDetail() {
               <div className="text-center py-8">
                 <div className="text-gray-400 text-4xl mb-2">🔍</div>
                 <p className="text-gray-500">No assessments scheduled yet</p>
-                <button className="mt-3 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                <button 
+                  onClick={() => setShowAssessmentModal(true)}
+                  className="mt-3 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                >
                   Schedule Assessment
                 </button>
               </div>
@@ -383,6 +409,28 @@ export default function RequestDetail() {
           </div>
         )}
       </div>
+      
+      {/* Assessment Modal */}
+      <AssessmentModal
+        isOpen={showAssessmentModal}
+        onClose={() => {
+          setShowAssessmentModal(false)
+          setSelectedAssessment(null)
+        }}
+        requestId={request.id}
+        existingAssessment={selectedAssessment}
+        onSuccess={() => {
+          // Refresh the request data to show updated assessment
+          window.location.reload()
+        }}
+      />
+      
+      {/* Quote Conversion Modal */}
+      <QuoteConversionModal
+        isOpen={showQuoteModal}
+        onClose={() => setShowQuoteModal(false)}
+        request={request}
+      />
     </div>
   )
 }
