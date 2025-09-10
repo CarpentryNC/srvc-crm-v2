@@ -54,6 +54,8 @@ export interface CreateJobInput {
   scheduled_date?: string;
   estimated_hours?: number;
   notes?: string;
+  request_id?: string;
+  quote_id?: string;
 }
 
 // Job status update input

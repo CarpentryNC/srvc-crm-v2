@@ -8,6 +8,7 @@ import SaveToLibrary from '../products/SaveToLibrary'
 // Local line item interface for UI (using unitPrice instead of unit_price_cents)
 interface LocalLineItem {
   id: string
+  title?: string
   description: string
   quantity: number
   unitPrice: number
@@ -55,7 +56,8 @@ export default function QuoteBuilder({
   const [lineItems, setLineItems] = useState<LocalLineItem[]>([
     {
       id: crypto.randomUUID(),
-      description: requestId ? 'Labor and Services' : '',
+      title: requestId ? 'Labor and Services' : '',
+      description: requestId ? 'Professional services as per request requirements' : '',
       quantity: 1,
       unitPrice: 0,
       total: 0
@@ -88,6 +90,7 @@ export default function QuoteBuilder({
         .sort((a, b) => a.sort_order - b.sort_order)
         .map(item => ({
           id: item.id,
+          title: item.title || '',
           description: item.description,
           quantity: item.quantity,
           unitPrice: item.unit_price,
@@ -131,6 +134,7 @@ export default function QuoteBuilder({
   const addLineItem = () => {
     setLineItems(prev => [...prev, {
       id: crypto.randomUUID(),
+      title: '',
       description: '',
       quantity: 1,
       unitPrice: 0,
@@ -167,7 +171,8 @@ export default function QuoteBuilder({
   const handleProductSelect = (product: any, quantity?: number) => {
     const newLineItem: LocalLineItem = {
       id: crypto.randomUUID(),
-      description: product.name,
+      title: product.name,
+      description: product.description || '',
       quantity: quantity || 1,
       unitPrice: product.default_unit_price,
       total: (quantity || 1) * product.default_unit_price
@@ -175,7 +180,7 @@ export default function QuoteBuilder({
 
     // Replace empty line items or add to existing ones
     setLineItems(prev => {
-      const hasEmptyItems = prev.some(item => !item.description.trim() && item.unitPrice === 0)
+      const hasEmptyItems = prev.some(item => !item.title?.trim() && !item.description.trim() && item.unitPrice === 0)
       if (hasEmptyItems && prev.length === 1) {
         // Replace the single empty item
         return [newLineItem]
@@ -190,8 +195,8 @@ export default function QuoteBuilder({
 
   // Handle save line item to library
   const handleSaveToLibrary = (lineItem: LocalLineItem) => {
-    if (!lineItem.description.trim()) {
-      setError('Please add a description to the line item before saving to library')
+    if (!lineItem.title?.trim() && !lineItem.description.trim()) {
+      setError('Please add a title or description to the line item before saving to library')
       return
     }
     setSaveToLibraryLineItem(lineItem)
@@ -240,8 +245,8 @@ export default function QuoteBuilder({
       return
     }
 
-    if (lineItems.filter(item => item.description.trim()).length === 0) {
-      setError('Please add at least one line item')
+    if (lineItems.filter(item => item.title?.trim() || item.description.trim()).length === 0) {
+      setError('Please add at least one line item with a title or description')
       return
     }
 
@@ -272,9 +277,10 @@ export default function QuoteBuilder({
       // Save line items if quote was created/updated successfully
       if (result) {
         const lineItemsData: QuoteLineItemInput[] = lineItems
-          .filter(item => item.description.trim())
+          .filter(item => item.title?.trim() || item.description.trim())
           .map((item, index) => ({
-            description: item.description.trim(),
+            title: item.title?.trim() || undefined,
+            description: item.description.trim() || 'No description provided',
             quantity: item.quantity,
             unit_price_cents: dollarsToCents(item.unitPrice),
             sort_order: index + 1
@@ -443,17 +449,31 @@ export default function QuoteBuilder({
           <div className="space-y-4">
             {lineItems.map((item) => (
               <div key={item.id} className="grid grid-cols-12 gap-4 items-start p-4 border border-gray-200 rounded-lg">
-                <div className="col-span-12 sm:col-span-5">
-                  <label className="block text-xs font-medium text-gray-500 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    value={item.description}
-                    onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                    rows={2}
-                    className="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    placeholder="Describe the work or materials"
-                  />
+                <div className="col-span-12 sm:col-span-5 space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">
+                      Line Item Title
+                    </label>
+                    <input
+                      type="text"
+                      value={item.title || ''}
+                      onChange={(e) => updateLineItem(item.id, 'title', e.target.value)}
+                      className="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      placeholder="e.g., Kitchen Cabinet Installation"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      value={item.description}
+                      onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                      rows={2}
+                      className="block w-full text-sm rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      placeholder="Detailed description of work or materials"
+                    />
+                  </div>
                 </div>
 
                 <div className="col-span-4 sm:col-span-2">
@@ -502,7 +522,7 @@ export default function QuoteBuilder({
                   <button
                     type="button"
                     onClick={() => handleSaveToLibrary(item)}
-                    disabled={!item.description.trim()}
+                    disabled={!item.title?.trim() && !item.description.trim()}
                     className="text-green-600 hover:text-green-500 disabled:text-gray-400 disabled:cursor-not-allowed"
                     title="Save to product library"
                   >
@@ -620,6 +640,7 @@ export default function QuoteBuilder({
           onClose={handleSaveToLibraryClose}
           onSaved={handleLibrarySaveSuccess}
           lineItem={{
+            title: saveToLibraryLineItem.title,
             description: saveToLibraryLineItem.description,
             quantity: saveToLibraryLineItem.quantity,
             unit_price: saveToLibraryLineItem.unitPrice,

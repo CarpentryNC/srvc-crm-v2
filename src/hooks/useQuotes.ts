@@ -8,6 +8,7 @@ export interface QuoteLineItem {
   created_at: string
   updated_at: string
   quote_id: string
+  title?: string
   description: string
   quantity: number
   unit_price_cents: number
@@ -18,6 +19,7 @@ export interface QuoteLineItem {
 }
 
 export interface QuoteLineItemInput {
+  title?: string
   description: string
   quantity: number
   unit_price_cents: number
@@ -145,6 +147,7 @@ export function useQuotes() {
             ),
             quote_line_items(
               id,
+              title,
               description,
               quantity,
               unit_price_cents,
@@ -254,6 +257,7 @@ export function useQuotes() {
           ),
           quote_line_items(
             id,
+            title,
             description,
             quantity,
             unit_price_cents,
@@ -314,6 +318,7 @@ export function useQuotes() {
           ),
           quote_line_items(
             id,
+            title,
             description,
             quantity,
             unit_price_cents,
@@ -371,6 +376,7 @@ export function useQuotes() {
           ),
           quote_line_items(
             id,
+            title,
             description,
             quantity,
             unit_price_cents,

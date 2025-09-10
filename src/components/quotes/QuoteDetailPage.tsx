@@ -55,6 +55,11 @@ export default function QuoteDetailPage() {
     if (id && quotes.length > 0 && !quotesLoading) {
       const updatedQuote = quotes.find(q => q.id === id)
       if (updatedQuote && updatedQuote.updated_at !== quote?.updated_at) {
+        console.log('Quote updated via real-time subscription:', {
+          old: quote?.status,
+          new: updatedQuote.status,
+          timestamp: updatedQuote.updated_at
+        })
         setQuote(updatedQuote)
       }
     }

@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { useQuotes, type Quote } from '../../hooks/useQuotes'
+import QuoteStatusHistory from './QuoteStatusHistory'
+import QuoteStatusWorkflow from './QuoteStatusWorkflow'
+import QuoteToJobModal from './QuoteToJobModal'
 
 interface QuotePreviewProps {
   quote: Quote
@@ -12,6 +15,17 @@ export default function QuotePreview({ quote, onEdit, onStatusChange }: QuotePre
   const [generatingPDF, setGeneratingPDF] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [statusError, setStatusError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [optimisticStatus, setOptimisticStatus] = useState<Quote['status'] | null>(null)
+  const [showJobConversionModal, setShowJobConversionModal] = useState(false)
+
+  // Handle successful job conversion
+  const handleJobConversionSuccess = (jobId: string) => {
+    console.log('Job created successfully:', jobId)
+    setShowJobConversionModal(false)
+    setSuccessMessage('Quote converted to job successfully!')
+    setTimeout(() => setSuccessMessage(null), 5000)
+  }
 
   const customerName = quote.customer
     ? `${quote.customer.first_name} ${quote.customer.last_name}`
@@ -49,15 +63,35 @@ export default function QuotePreview({ quote, onEdit, onStatusChange }: QuotePre
     } else {
       setUpdatingStatus(true)
       setStatusError(null)
+      setSuccessMessage(null)
+      
+      // Optimistic update - immediately show the new status
+      setOptimisticStatus(newStatus)
       
       try {
         const updated = await updateQuote(quote.id, { status: newStatus })
-        if (!updated) {
+        if (updated) {
+          // Show success message
+          const statusLabels = {
+            draft: 'Draft',
+            sent: 'Sent', 
+            accepted: 'Accepted',
+            rejected: 'Rejected',
+            expired: 'Expired'
+          }
+          setSuccessMessage(`Quote successfully marked as ${statusLabels[newStatus]}!`)
+          
+          // Clear success message after 3 seconds
+          setTimeout(() => setSuccessMessage(null), 3000)
+        } else {
+          // Revert optimistic update on failure
+          setOptimisticStatus(null)
           setStatusError('Failed to update quote status. Please try again.')
         }
-        // Quote will be updated via real-time subscription if successful
       } catch (error) {
         console.error('Error updating quote status:', error)
+        // Revert optimistic update on error
+        setOptimisticStatus(null)
         setStatusError(error instanceof Error ? error.message : 'Failed to update quote status')
       } finally {
         setUpdatingStatus(false)
@@ -105,49 +139,19 @@ export default function QuotePreview({ quote, onEdit, onStatusChange }: QuotePre
               <h1 className="text-lg font-semibold text-gray-900">
                 Quote Preview
               </h1>
-              {getStatusBadge(quote.status)}
+              {getStatusBadge(optimisticStatus || quote.status)}
+              {updatingStatus && (
+                <div className="flex items-center text-sm text-gray-500">
+                  <svg className="animate-spin -ml-1 mr-1 h-3 w-3 text-gray-400" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Updating...
+                </div>
+              )}
             </div>
 
             <div className="flex items-center space-x-3">
-              {/* Status Actions */}
-              {quote.status === 'draft' && (
-                <button
-                  onClick={() => handleStatusChange('sent')}
-                  disabled={updatingStatus}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  {updatingStatus ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Updating...
-                    </>
-                  ) : (
-                    'Mark as Sent'
-                  )}
-                </button>
-              )}
-
-              {quote.status === 'sent' && (
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleStatusChange('accepted')}
-                    disabled={updatingStatus}
-                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-green-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                  >
-                    {updatingStatus ? 'Updating...' : 'Mark Accepted'}
-                  </button>
-                  <button
-                    onClick={() => handleStatusChange('rejected')}
-                    disabled={updatingStatus}
-                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                  >
-                    {updatingStatus ? 'Updating...' : 'Mark Rejected'}
-                  </button>
-                </div>
-              )}
 
               {/* PDF Export */}
               <button
@@ -171,6 +175,19 @@ export default function QuotePreview({ quote, onEdit, onStatusChange }: QuotePre
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                   Edit Quote
+                </button>
+              )}
+
+              {/* Convert to Job Button - Only for accepted quotes */}
+              {(optimisticStatus === 'accepted' || quote.status === 'accepted') && (
+                <button
+                  onClick={() => setShowJobConversionModal(true)}
+                  className="inline-flex items-center px-4 py-2 border border-green-600 text-sm font-medium rounded-md text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                  Convert to Job
                 </button>
               )}
             </div>
@@ -203,6 +220,44 @@ export default function QuotePreview({ quote, onEdit, onStatusChange }: QuotePre
           </div>
         </div>
       )}
+
+      {/* Success Display */}
+      {successMessage && (
+        <div className="bg-green-50 border-l-4 border-green-400 p-4 print:hidden">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-green-700">{successMessage}</p>
+            </div>
+            <div className="ml-auto pl-3">
+              <button
+                onClick={() => setSuccessMessage(null)}
+                className="inline-flex text-green-400 hover:text-green-600"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Status Management */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 print:hidden">
+        <div className="space-y-4 mb-6">
+          <QuoteStatusWorkflow 
+            currentStatus={optimisticStatus || quote.status}
+            onStatusChange={handleStatusChange}
+            isUpdating={updatingStatus}
+          />
+          <QuoteStatusHistory quote={quote} />
+        </div>
+      </div>
 
       {/* Quote Document */}
       <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8 print:max-w-none print:py-0 print:px-0">
@@ -320,7 +375,14 @@ export default function QuotePreview({ quote, onEdit, onStatusChange }: QuotePre
                         .map((item) => (
                           <tr key={item.id} className="print:break-inside-avoid">
                             <td className="px-6 py-4 text-sm text-gray-900 print:px-3 print:py-2 print:text-xs">
-                              {item.description}
+                              {item.title && (
+                                <div className="font-medium text-gray-900 mb-1">
+                                  {item.title}
+                                </div>
+                              )}
+                              <div className={item.title ? 'text-gray-600 text-xs' : ''}>
+                                {item.description}
+                              </div>
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900 text-right print:px-3 print:py-2 print:text-xs">
                               {item.quantity}
@@ -425,6 +487,14 @@ export default function QuotePreview({ quote, onEdit, onStatusChange }: QuotePre
           </div>
         </div>
       </div>
+
+      {/* Quote to Job Conversion Modal */}
+      <QuoteToJobModal
+        isOpen={showJobConversionModal}
+        onClose={() => setShowJobConversionModal(false)}
+        quote={quote}
+        onConversionSuccess={handleJobConversionSuccess}
+      />
     </div>
   )
 }

@@ -182,6 +182,30 @@ export function useJobs() {
     }
   }, [user, fetchStats]);
 
+  // Create job from quote (simple wrapper for clarity)
+  const createJobFromQuote = useCallback(async (quoteId: string, jobData: Omit<CreateJobInput, 'quote_id'>): Promise<Job | null> => {
+    if (!user) throw new Error('User not authenticated');
+
+    try {
+      setError(null);
+
+      // Create the job with quote_id
+      const job = await createJob({
+        ...jobData,
+        quote_id: quoteId
+      });
+
+      // TODO: Add workflow tracking once types are updated
+      console.log(`Job created from quote ${quoteId}:`, job?.id);
+
+      return job;
+    } catch (err) {
+      console.error('Error creating job from quote:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create job from quote');
+      throw err;
+    }
+  }, [user, createJob]);
+
   // Update existing job
   const updateJob = useCallback(async (jobUpdate: JobUpdate): Promise<Job | null> => {
     if (!user) throw new Error('User not authenticated');
@@ -447,6 +471,7 @@ export function useJobs() {
     stats,
     fetchJobs,
     createJob,
+    createJobFromQuote,
     updateJob,
     updateJobStatus,
     deleteJob,

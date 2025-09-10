@@ -9,6 +9,7 @@ interface SaveToLibraryProps {
   onClose: () => void
   onSaved?: () => void
   lineItem: {
+    title?: string
     description: string
     quantity: number
     unit_price: number
@@ -24,8 +25,8 @@ export default function SaveToLibrary({ isOpen, onClose, onSaved, lineItem }: Sa
   
   // Pre-populate form with line item data
   const [formData, setFormData] = useState<ProductFormData>({
-    name: lineItem.description,
-    description: '',
+    name: lineItem.title || lineItem.description,
+    description: lineItem.title ? lineItem.description : '',
     category: 'service',
     default_unit_price: lineItem.unit_price,
     unit: lineItem.unit || 'each',
