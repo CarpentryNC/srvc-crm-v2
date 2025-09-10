@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { supabase } from '../../lib/supabase'
 
 export function ResetPasswordForm() {
   const [password, setPassword] = useState('')
@@ -8,20 +9,37 @@ export function ResetPasswordForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [validToken, setValidToken] = useState(false)
   
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const { updatePassword } = useAuth()
 
   useEffect(() => {
-    // Check if we have the required tokens from the URL
-    const accessToken = searchParams.get('access_token')
-    const refreshToken = searchParams.get('refresh_token')
+    // Parse tokens from URL hash (Supabase sends them as hash fragments)
+    const hashParams = new URLSearchParams(window.location.hash.substring(1))
+    const accessToken = hashParams.get('access_token')
+    const refreshToken = hashParams.get('refresh_token')
+    const type = hashParams.get('type')
     
-    if (!accessToken || !refreshToken) {
+    if (accessToken && refreshToken && type === 'recovery') {
+      // Set the session with the tokens from the URL
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken
+      }).then(({ error }) => {
+        if (error) {
+          console.error('Error setting session:', error)
+          setError('Invalid reset link. Please request a new password reset.')
+        } else {
+          setValidToken(true)
+          // Clear the hash from URL for cleaner appearance
+          window.history.replaceState(null, '', window.location.pathname)
+        }
+      })
+    } else {
       setError('Invalid reset link. Please request a new password reset.')
     }
-  }, [searchParams])
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,11 +61,11 @@ export function ResetPasswordForm() {
 
     try {
       await updatePassword(password)
-      setSuccessMessage('Password updated successfully!')
+      setSuccessMessage('Password updated successfully! You will be redirected to the dashboard.')
       
-      // Redirect to login after a short delay
+      // Redirect to dashboard after successful password reset (user is now authenticated)
       setTimeout(() => {
-        navigate('/')
+        navigate('/dashboard')
       }, 2000)
       
     } catch (err: any) {
@@ -55,6 +73,20 @@ export function ResetPasswordForm() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Show loading or error state if token is not valid yet
+  if (!validToken && !error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Validating reset link...</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -69,7 +101,22 @@ export function ResetPasswordForm() {
           </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <div className="form-error">{error}</div>
+            <div className="mt-3">
+              <button
+                onClick={() => navigate('/')}
+                className="btn-primary w-full"
+              >
+                Back to Login
+              </button>
+            </div>
+          </div>
+        )}
+
+        {validToken && !error && (
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
               <label htmlFor="password" className="form-label">
@@ -114,7 +161,7 @@ export function ResetPasswordForm() {
             <div className="bg-green-50 border border-green-200 rounded-md p-4">
               <div className="text-green-700 text-sm">{successMessage}</div>
               <div className="text-green-600 text-xs mt-1">
-                Redirecting to login in 2 seconds...
+                Redirecting to dashboard in 2 seconds...
               </div>
             </div>
           )}
@@ -139,6 +186,7 @@ export function ResetPasswordForm() {
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   )

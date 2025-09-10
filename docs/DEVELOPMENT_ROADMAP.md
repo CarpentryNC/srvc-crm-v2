@@ -7,7 +7,90 @@
 - **✅ Database Schema**: Comprehensive, secure schema with RLS policies
 - **✅ Authentication System**: Supabase Auth with proper error handling
 - **✅ Security Infrastructure**: Backup scripts, Git workflows, pre-commit hooks
-- **✅ Type Safety**: Complete TypeScript definitions for all database entities
+- **✅ Type Safety**: Complete TypeScript definitions for all database ---
+
+## 🗄️ **Database Schema Additions for Request Management**
+
+### **New Tables Required**
+```sql
+-- Service Requests Table
+CREATE TABLE requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id uuid REFERENCES customers(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  title text NOT NULL,
+  description text,
+  priority text DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+  status text DEFAULT 'received' CHECK (status IN ('received', 'assessed', 'quoted', 'approved', 'converted')),
+  requires_assessment boolean DEFAULT false,
+  location_notes text,
+  preferred_contact_method text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Onsite Assessments Table
+CREATE TABLE assessments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id uuid REFERENCES requests(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  scheduled_date timestamptz,
+  completed_date timestamptz,
+  findings text,
+  recommendations text,
+  estimated_duration_hours numeric(5,2),
+  estimated_cost numeric(10,2),
+  status text DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed', 'cancelled')),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Request Files/Photos Table
+CREATE TABLE request_files (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id uuid REFERENCES requests(id) ON DELETE CASCADE,
+  assessment_id uuid REFERENCES assessments(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  file_name text NOT NULL,
+  file_path text NOT NULL,
+  file_type text NOT NULL,
+  file_size integer,
+  description text,
+  category text DEFAULT 'reference' CHECK (category IN ('reference', 'assessment', 'before', 'after', 'damage')),
+  created_at timestamptz DEFAULT now()
+);
+
+-- Workflow Tracking Table
+CREATE TABLE workflow_conversions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_type text NOT NULL CHECK (source_type IN ('request', 'quote', 'job')),
+  source_id uuid NOT NULL,
+  target_type text NOT NULL CHECK (target_type IN ('quote', 'job', 'invoice')),
+  target_id uuid NOT NULL,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  conversion_notes text,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+### **Schema Updates to Existing Tables**
+```sql
+-- Add request reference to quotes table
+ALTER TABLE quotes ADD COLUMN request_id uuid REFERENCES requests(id) ON DELETE SET NULL;
+ALTER TABLE quotes ADD COLUMN assessment_id uuid REFERENCES assessments(id) ON DELETE SET NULL;
+
+-- Add quote reference to jobs table (already exists)
+ALTER TABLE jobs ADD COLUMN quote_id uuid REFERENCES quotes(id) ON DELETE SET NULL;
+
+-- Add request reference to jobs table for direct conversions
+ALTER TABLE jobs ADD COLUMN request_id uuid REFERENCES requests(id) ON DELETE SET NULL;
+```
+
+---
+
+### **📋 Ready-to-Start Checklist**
+
+### **Immediate Next Steps (This Week)**ities
 - **✅ Environment Setup**: Proper configuration management with .env
 
 ### 🎉 **Phase 1 Complete (100%)**
@@ -123,77 +206,153 @@ src/hooks/
   - ✅ Validation system with detailed error reporting
   - ✅ Professional user interface with progress indicators
 
-### **Phase 3: Job Management System (Week 3-4)**
+### **Phase 3: Request Management System (Week 3-4)**
 
-#### **Priority 3.1: Job Workflow**
+#### **Priority 3.1: Service Request Workflow**
+```bash
+src/components/requests/
+├── RequestList.tsx       # Service request listing with status filters
+├── RequestForm.tsx       # New request creation form
+├── RequestDetail.tsx     # Detailed request view with photos
+├── RequestEdit.tsx       # Request editing and updates
+├── OnlineRequestForm.tsx # Customer-facing online request form
+├── PhotoGallery.tsx      # Photo management for requests
+├── AssessmentScheduler.tsx # Onsite assessment scheduling
+└── RequestActions.tsx    # Convert to quote/job actions
+
+src/components/assessments/
+├── AssessmentForm.tsx    # Onsite assessment form
+├── AssessmentReport.tsx  # Assessment report generation
+└── AssessmentSchedule.tsx # Assessment calendar integration
+
+src/hooks/
+├── useRequests.ts        # Request data management
+├── useRequestPhotos.ts   # Photo upload and management
+├── useAssessments.ts     # Assessment scheduling and tracking
+└── useRequestWorkflow.ts # Request → Quote → Job conversion
+```
+
+**Tasks:**
+- [ ] Create service request intake system
+- [ ] Implement photo upload with drag-drop interface
+- [ ] Add onsite assessment scheduling workflow
+- [ ] Create customer-facing online request form
+- [ ] Implement request-to-quote conversion system
+- [ ] Add assessment report generation
+- [ ] Create request status tracking (received → assessed → quoted)
+- [ ] Implement automated follow-up notifications
+
+#### **Priority 3.2: Photo & File Management**
+```bash
+src/components/files/
+├── FileUpload.tsx        # Multi-file upload with progress
+├── PhotoViewer.tsx       # Photo gallery with zoom/annotation
+├── FileManager.tsx       # File organization and tagging
+└── MobilePhotoCapture.tsx # Mobile camera integration
+
+src/hooks/
+├── useFileUpload.ts      # File upload with Supabase Storage
+├── usePhotoManagement.ts # Photo organization and metadata
+└── useFileSharing.ts     # Secure file sharing with customers
+```
+
+**Tasks:**
+- [ ] Implement Supabase Storage integration for photos
+- [ ] Create photo annotation and markup tools
+- [ ] Add before/after photo comparison views
+- [ ] Implement file categorization and tagging
+- [ ] Create secure customer file sharing portal
+- [ ] Add mobile camera integration for field photos
+
+### **Phase 4: Job Management System (Week 4-5)**
+
+#### **Priority 4.1: Job Workflow & Conversion**
 ```bash
 src/components/jobs/
 ├── JobList.tsx           # Job listing with status filters
 ├── JobCard.tsx           # Job summary card
-├── JobForm.tsx           # Create/edit job form
-├── JobView.tsx           # Detailed job view
+├── JobForm.tsx           # Create/edit job form (from request/quote)
+├── JobView.tsx           # Detailed job view with request history
 ├── JobTimeline.tsx       # Job progress timeline
-└── JobStatusBoard.tsx    # Kanban-style job board
+├── JobStatusBoard.tsx    # Kanban-style job board
+└── RequestToJobConverter.tsx # Convert approved quotes to jobs
 
 src/hooks/
 ├── useJobs.ts            # Job data management
 ├── useJobWorkflow.ts     # Job status transitions
-└── useJobScheduling.ts   # Scheduling logic
+├── useJobScheduling.ts   # Scheduling logic
+└── useJobConversion.ts   # Quote → Job conversion logic
 ```
 
 **Tasks:**
 - [ ] Create job listing with status-based filtering
-- [ ] Implement job creation linked to customers
+- [ ] Implement job creation from approved quotes
 - [ ] Add job scheduling with calendar integration
 - [ ] Create job progress tracking system
-- [ ] Add job photo documentation
+- [ ] Link job photos from original request
 - [ ] Implement job notes and updates
 - [ ] Add time tracking for jobs
+- [ ] Create job completion workflow with customer sign-off
 
-### **Phase 4: Quote & Invoice System (Week 4-5)**
+### **Phase 5: Quote & Invoice System (Week 5-6)**
 
-#### **Priority 4.1: Quote Management**
+#### **Priority 5.1: Quote Management & Conversion**
 ```bash
 src/components/quotes/
 ├── QuoteList.tsx         # Quote listing and management
-├── QuoteForm.tsx         # Quote creation form
-├── QuoteBuilder.tsx      # Interactive quote builder
+├── QuoteForm.tsx         # Quote creation from requests/assessments
+├── QuoteBuilder.tsx      # Interactive quote builder with request data
 ├── QuotePreview.tsx      # Quote preview and PDF export
-└── QuoteTemplates.tsx    # Quote templates management
+├── QuoteTemplates.tsx    # Quote templates management
+├── RequestToQuoteConverter.tsx # Convert requests to quotes
+└── QuoteApprovalWorkflow.tsx   # Customer quote approval process
 
 src/hooks/
 ├── useQuotes.ts          # Quote data management
 ├── useQuoteBuilder.ts    # Quote line item management
+├── useQuoteConversion.ts # Request → Quote conversion logic
 └── usePDFGeneration.ts   # PDF generation logic
 ```
 
 **Tasks:**
-- [ ] Create quote builder with line items
-- [ ] Implement quote templates system
-- [ ] Add quote PDF generation and export
-- [ ] Create quote approval workflow
-- [ ] Add quote-to-job conversion
-- [ ] Implement quote versioning
+- [ ] Create quote builder with line items and request context
+- [ ] Implement request-to-quote conversion with photo inclusion
+- [ ] Add quote templates with service categories
+- [ ] Create quote PDF generation with before photos
+- [ ] Implement customer quote approval workflow
+- [ ] Add quote versioning and revision tracking
+- [ ] Create quote-to-job conversion system
+- [ ] Implement automated quote follow-up system
 
-#### **Priority 4.2: Invoice Management**
+#### **Priority 5.2: Invoice Management & Automation**
 ```bash
 src/components/invoices/
 ├── InvoiceList.tsx       # Invoice listing and tracking
-├── InvoiceForm.tsx       # Invoice creation form
-├── InvoiceView.tsx       # Invoice display and actions
-└── PaymentTracking.tsx   # Payment status tracking
+├── InvoiceForm.tsx       # Invoice creation from approved quotes
+├── InvoiceView.tsx       # Invoice display with job completion photos
+├── PaymentTracking.tsx   # Payment status tracking
+├── QuoteToInvoiceConverter.tsx # Convert approved quotes to invoices
+└── InvoiceAutomation.tsx # Automated invoice generation
+
+src/hooks/
+├── useInvoices.ts        # Invoice data management
+├── useInvoiceGeneration.ts # Quote → Invoice conversion
+└── usePaymentTracking.ts # Payment status management
 ```
 
 **Tasks:**
-- [ ] Create invoice generation from quotes/jobs
-- [ ] Implement payment status tracking
-- [ ] Add invoice PDF generation
-- [ ] Create payment reminder system
-- [ ] Add invoice payment recording
+- [ ] Create invoice generation from approved quotes
+- [ ] Implement automatic invoice creation on job completion
+- [ ] Add invoice PDF generation with before/after photos
+- [ ] Create payment status tracking and reminders
+- [ ] Implement invoice payment recording
+- [ ] Add customer payment portal integration
+- [ ] Create recurring invoice automation
+- [ ] Implement late payment notification system
 
-### **Phase 5: Stripe Payment Integration (Week 5-6)**
+### **Phase 6: Stripe Payment Integration (Week 6-7)**
 
-#### **Priority 5.1: Payment Processing**
+#### **Priority 6.1: Payment Processing**
 ```bash
 src/components/payments/
 ├── PaymentForm.tsx       # Stripe payment form
@@ -219,9 +378,9 @@ src/lib/
 - [ ] Create payment tracking dashboard
 - [ ] Implement refund processing
 
-### **Phase 6: Advanced Features (Week 6-8)**
+### **Phase 7: Advanced Features (Week 7-9)**
 
-#### **Priority 6.1: Calendar & Scheduling**
+#### **Priority 7.1: Calendar & Scheduling**
 ```bash
 src/components/calendar/
 ├── Calendar.tsx          # Main calendar component
@@ -243,7 +402,7 @@ src/hooks/
 - [ ] Add calendar synchronization (Google Calendar)
 - [ ] Implement scheduling notifications
 
-#### **Priority 6.2: File Management & Documentation**
+#### **Priority 7.2: Advanced File Management**
 ```bash
 src/components/files/
 ├── FileUpload.tsx        # File upload component
@@ -263,9 +422,9 @@ src/hooks/
 - [ ] Create mobile photo capture
 - [ ] Implement file sharing with customers
 
-### **Phase 7: Reporting & Analytics (Week 7-8)**
+### **Phase 8: Reporting & Analytics (Week 8-10)**
 
-#### **Priority 7.1: Business Intelligence**
+#### **Priority 8.1: Business Intelligence**
 ```bash
 src/components/reports/
 ├── RevenueReports.tsx    # Revenue analytics
@@ -297,23 +456,72 @@ src/hooks/
 3. **Basic Authentication Flow** - User onboarding
 
 ### **⚡ High Priority (Week 3-4)**
-1. **Job Management** - Core business workflow
-2. **Quote System** - Revenue generation
-3. **Basic Reporting** - Business insights
+1. **Request Management** - Customer intake and assessment workflow
+2. **Photo & File Upload** - Documentation and evidence collection
+3. **Onsite Assessment Scheduling** - Professional service delivery
 
-### **📈 Medium Priority (Week 5-6)**
-1. **Invoice & Payment** - Revenue collection
+### **📈 Medium Priority (Week 4-5)**
+1. **Job Management** - Core business workflow with conversion from quotes
+2. **Workflow Automation** - Request → Quote → Job → Invoice pipeline
+3. **Customer Communication** - Status updates and notifications
+
+### **� Revenue Critical (Week 5-6)**
+1. **Quote System** - Revenue generation with request integration
+2. **Invoice Automation** - Streamlined billing from approved quotes
+3. **Payment Processing** - Revenue collection and tracking
+
+### **🎯 Business Enhancement (Week 6-8)**
+1. **Stripe Integration** - Professional payment processing
 2. **Calendar Integration** - Scheduling optimization
-3. **File Management** - Documentation
+3. **Advanced File Management** - Document organization
 
-### **🌟 Enhancement (Week 7-8)**
-1. **Advanced Analytics** - Business intelligence
-2. **Mobile Optimization** - Field use
-3. **API Integration** - Third-party tools
+### **🌟 Analytics & Growth (Week 8-10)**
+1. **Advanced Analytics** - Business intelligence and reporting
+2. **Mobile Optimization** - Field use and customer portals
+3. **API Integration** - Third-party tools and automation
 
 ---
 
-## 🛠️ **Technical Implementation Strategy**
+## � **Complete Business Workflow Integration**
+
+### **🚀 End-to-End Customer Journey**
+```mermaid
+flowchart TD
+    A[Customer Service Request] --> B{Requires Assessment?}
+    B -->|Yes| C[Schedule Onsite Assessment]
+    B -->|No| D[Direct Quote Generation]
+    C --> E[Assessment Report with Photos]
+    E --> F[Generate Quote from Assessment]
+    D --> G[Quote with Line Items]
+    F --> G
+    G --> H{Quote Approved?}
+    H -->|Yes| I[Convert Quote to Job]
+    H -->|No| J[Follow-up & Revisions]
+    J --> G
+    I --> K[Job Execution with Progress Photos]
+    K --> L[Job Completion Sign-off]
+    L --> M[Auto-Generate Invoice from Quote]
+    M --> N[Payment Processing]
+    N --> O[Job Archive & Analytics]
+```
+
+### **🔗 System Integration Points**
+1. **Request → Assessment**: Automatic scheduling with photo requirements
+2. **Assessment → Quote**: Pre-populated quote from assessment findings
+3. **Quote → Job**: Seamless conversion with all context preserved
+4. **Job → Invoice**: Automated invoice generation with completion photos
+5. **Cross-System Data Flow**: Real-time updates across all modules
+
+### **📸 Photo & Documentation Workflow**
+- **Request Stage**: Customer uploads reference photos
+- **Assessment Stage**: Technician captures detailed assessment photos
+- **Quote Stage**: Photos included in quote for transparency
+- **Job Stage**: Progress photos and before/after documentation
+- **Invoice Stage**: Completion photos attached for verification
+
+---
+
+## �🛠️ **Technical Implementation Strategy**
 
 ### **Development Approach**
 1. **Component-First**: Build reusable UI components
@@ -326,15 +534,28 @@ src/hooks/
 ```bash
 src/
 ├── components/           # Organized by feature
-│   ├── customers/
-│   ├── jobs/
-│   ├── quotes/
-│   ├── invoices/
-│   ├── calendar/
-│   ├── reports/
-│   ├── layout/
+│   ├── customers/        # Customer management (✅ Complete)
+│   ├── requests/         # Service request intake and management
+│   ├── assessments/      # Onsite assessment scheduling and reports
+│   ├── jobs/            # Job management and execution
+│   ├── quotes/          # Quote generation and approval
+│   ├── invoices/        # Invoice generation and payment tracking
+│   ├── files/           # File upload and photo management
+│   ├── calendar/        # Scheduling and appointment management
+│   ├── reports/         # Analytics and business intelligence
+│   ├── payments/        # Stripe integration and payment processing
+│   ├── workflow/        # Cross-system conversion components
+│   ├── layout/          # Dashboard and navigation (✅ Complete)
 │   └── ui/              # Reusable UI components
 ├── hooks/               # Custom business logic hooks
+│   ├── useCustomers.ts  # ✅ Complete
+│   ├── useRequests.ts   # Service request management
+│   ├── useJobs.ts       # Job workflow management  
+│   ├── useQuotes.ts     # Quote generation and tracking
+│   ├── useInvoices.ts   # Invoice automation
+│   ├── useFiles.ts      # File upload and management
+│   ├── useWorkflow.ts   # Cross-system conversions
+│   └── usePayments.ts   # Payment processing
 ├── pages/               # Page-level components
 ├── lib/                 # Utilities and configurations
 ├── types/               # TypeScript definitions
@@ -361,8 +582,11 @@ src/
 - [x] Create customer detail and edit views
 - [x] **CSV Import System**: Professional bulk import functionality with Edge function
 - [x] **Supabase Local Environment**: Successfully configured and running
-- [ ] **NEXT: Enable Edge Runtime for CSV Import** (resolve container health check issues)
-- [ ] **NEXT: Start Phase 3 - Jobs Management System**
+- [x] **Phase 2 Complete**: Customer Management with comprehensive CRUD operations
+- [ ] **NEXT: Database Schema Migration** - Add request management tables
+- [ ] **NEXT: Start Phase 3 - Request Management System** - Customer intake workflow
+- [ ] **PRIORITY: Photo Upload Integration** - Supabase Storage setup for request photos
+- [ ] **PRIORITY: Assessment Scheduling** - Onsite visit workflow
 
 ### **Development Setup**
 - [ ] Install additional dependencies (React Router, date libraries)

@@ -1,4 +1,39 @@
 import { useAuth } from '../../hooks/useAuth';
+import { useCustomers } from '../../hooks/useCustomers';
+import { useJobs } from '../../hooks/useJobs';
+import { useMemo } from 'react';
+
+// Helper functions
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) return 'Just now';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} min ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hr ago`;
+  return `${Math.floor(diffInSeconds / 86400)} days ago`;
+}
+
+function getJobActivityTitle(status: string): string {
+  switch (status) {
+    case 'pending': return 'Job created';
+    case 'in_progress': return 'Job started';
+    case 'completed': return 'Job completed';
+    case 'cancelled': return 'Job cancelled';
+    default: return 'Job updated';
+  }
+}
+
+function getJobStatusIcon(status: string): string {
+  switch (status) {
+    case 'pending': return '📋';
+    case 'in_progress': return '🔨';
+    case 'completed': return '✅';
+    case 'cancelled': return '❌';
+    default: return '📄';
+  }
+}
 
 interface StatCardProps {
   title: string;
@@ -52,14 +87,59 @@ interface RecentActivityItem {
   icon: string;
 }
 
-function RecentActivity() {
-  const activities: RecentActivityItem[] = [
+function RecentActivity({ customers, jobs }: { customers: any[], jobs: any[] }) {
+  // Combine and sort recent items by created_at
+  const recentItems = useMemo(() => {
+    const items: (RecentActivityItem & { timestamp: Date })[] = [];
+    
+    // Add recent customers (sorted by most recent)
+    [...customers]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 3)
+      .forEach(customer => {
+        items.push({
+          id: `customer-${customer.id}`,
+          type: 'customer',
+          title: 'New customer added',
+          description: `${customer.first_name} ${customer.last_name}`,
+          time: formatRelativeTime(customer.created_at),
+          icon: '👥',
+          timestamp: new Date(customer.created_at)
+        });
+      });
+    
+    // Add recent jobs (sorted by most recent updates)
+    [...jobs]
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+      .slice(0, 3)
+      .forEach(job => {
+        const customer = customers.find(c => c.id === job.customer_id);
+        items.push({
+          id: `job-${job.id}`,
+          type: 'job',
+          title: getJobActivityTitle(job.status),
+          description: `${job.title}${customer ? ` for ${customer.first_name} ${customer.last_name}` : ''}`,
+          time: formatRelativeTime(job.updated_at),
+          icon: getJobStatusIcon(job.status),
+          timestamp: new Date(job.updated_at)
+        });
+      });
+    
+    // Sort by timestamp and take top 5, then remove timestamp property
+    return items
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, 5)
+      .map(({ timestamp, ...item }) => item);
+  }, [customers, jobs]);
+
+  // Fallback activities when no data
+  const fallbackActivities: RecentActivityItem[] = [
     {
       id: '1',
       type: 'customer',
-      title: 'New customer added',
-      description: 'Welcome to your CRM! Add your first customer to get started.',
-      time: 'Just now',
+      title: 'Welcome to SRVC CRM!',
+      description: 'Add your first customer to get started.',
+      time: 'Get started',
       icon: '👥'
     },
     {
@@ -67,7 +147,7 @@ function RecentActivity() {
       type: 'job',
       title: 'Job system ready',
       description: 'Create and track jobs for your customers.',
-      time: '2 min ago',
+      time: 'Available now',
       icon: '🔨'
     },
     {
@@ -75,10 +155,12 @@ function RecentActivity() {
       type: 'quote',
       title: 'Quote builder available',
       description: 'Generate professional quotes for your services.',
-      time: '5 min ago',
+      time: 'Coming soon',
       icon: '📋'
     }
   ];
+
+  const activities = recentItems.length > 0 ? recentItems : fallbackActivities;
 
   return (
     <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
@@ -185,37 +267,47 @@ function QuickActions() {
 
 export function Dashboard() {
   const { user } = useAuth();
+  const { customers } = useCustomers();
+  const { jobs } = useJobs();
   
-  const stats = [
-    {
-      title: 'Total Customers',
-      value: 0,
-      icon: '👥',
-      change: 'Starting fresh',
-      changeType: 'neutral' as const
-    },
-    {
-      title: 'Active Jobs',
-      value: 0,
-      icon: '🔨',
-      change: 'Ready to begin',
-      changeType: 'neutral' as const
-    },
-    {
-      title: 'Pending Quotes',
-      value: 0,
-      icon: '📋',
-      change: 'Create your first',
-      changeType: 'neutral' as const
-    },
-    {
-      title: 'Monthly Revenue',
-      value: '$0',
-      icon: '💰',
-      change: 'Track earnings',
-      changeType: 'neutral' as const
-    }
-  ];
+  // Calculate real-time statistics
+  const stats = useMemo(() => {
+    const activeJobs = jobs.filter(job => job.status === 'in_progress').length;
+    const pendingJobs = jobs.filter(job => job.status === 'pending').length;
+    const completedJobs = jobs.filter(job => job.status === 'completed').length;
+    const totalJobs = jobs.length;
+    
+    return [
+      {
+        title: 'Total Customers',
+        value: customers.length,
+        icon: '👥',
+        change: customers.length === 0 ? 'Start by adding customers' : `${customers.length} customer${customers.length === 1 ? '' : 's'}`,
+        changeType: 'neutral' as const
+      },
+      {
+        title: 'Active Jobs',
+        value: activeJobs,
+        icon: '🔨',
+        change: activeJobs === 0 ? (totalJobs === 0 ? 'Create your first job' : 'No active jobs') : `${activeJobs} in progress`,
+        changeType: activeJobs > 0 ? 'increase' as const : 'neutral' as const
+      },
+      {
+        title: 'Pending Jobs',
+        value: pendingJobs,
+        icon: '📋',
+        change: pendingJobs === 0 ? 'No pending jobs' : `${pendingJobs} awaiting start`,
+        changeType: 'neutral' as const
+      },
+      {
+        title: 'Completed Jobs',
+        value: completedJobs,
+        icon: '✅',
+        change: completedJobs === 0 ? 'No completed jobs yet' : `${completedJobs} finished`,
+        changeType: completedJobs > 0 ? 'increase' as const : 'neutral' as const
+      }
+    ];
+  }, [customers, jobs]);
 
   return (
     <div className="space-y-6">
@@ -259,8 +351,53 @@ export function Dashboard() {
       {/* Content grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <QuickActions />
-        <RecentActivity />
+        <RecentActivity customers={customers} jobs={jobs} />
       </div>
+
+      {/* Jobs Overview Section */}
+      {jobs.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100">
+                Jobs Overview
+              </h3>
+              <a
+                href="/jobs"
+                className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
+              >
+                View all jobs →
+              </a>
+            </div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                  {jobs.filter(job => job.status === 'pending').length}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Pending</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {jobs.filter(job => job.status === 'in_progress').length}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">In Progress</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  {jobs.filter(job => job.status === 'completed').length}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Completed</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                  {jobs.filter(job => job.status === 'cancelled').length}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Cancelled</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Getting started section */}
       <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg">
