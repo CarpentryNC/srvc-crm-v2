@@ -14,6 +14,8 @@ import JobForm from '../components/jobs/JobForm';
 import JobDetail from '../components/jobs/JobDetail';
 import RequestList from '../components/requests/RequestList';
 import RequestForm from '../components/requests/RequestForm';
+import RequestDetail from '../components/requests/RequestDetail';
+import RequestEdit from '../components/requests/RequestEdit';
 import { ResetPasswordForm } from '../components/features/ResetPasswordForm';
 import { routes } from './routes';
 
@@ -177,7 +179,7 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <ComingSoon title="Request Detail" />
+                  <RequestDetail />
                 </Layout>
               </ProtectedRoute>
             }
@@ -188,7 +190,7 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <ComingSoon title="Request Edit" />
+                  <RequestEdit />
                 </Layout>
               </ProtectedRoute>
             }
