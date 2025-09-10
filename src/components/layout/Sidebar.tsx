@@ -21,6 +21,7 @@ export function Sidebar({ isOpen = true, setIsOpen }: SidebarProps) {
     { name: 'Requests', href: '/requests', icon: '📝', count: 0 },
     { name: 'Jobs', href: '/jobs', icon: '🔨', count: 0 },
     { name: 'Quotes', href: '/quotes', icon: '📋', count: 0 },
+    { name: 'Products', href: '/products', icon: '📦', count: undefined },
     { name: 'Invoices', href: '/invoices', icon: '💰', count: 0 },
     { name: 'Calendar', href: '/calendar', icon: '📅', count: undefined },
     { name: 'Settings', href: '/settings', icon: '⚙️', count: undefined },

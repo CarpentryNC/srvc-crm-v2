@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useQuotes, type Quote, type QuoteInput, type QuoteLineItemInput } from '../../hooks/useQuotes'
 import { useCustomers } from '../../hooks/useCustomers'
 import CustomerSearch from '../customers/CustomerSearch'
+import ProductPicker from '../products/ProductPicker'
+import SaveToLibrary from '../products/SaveToLibrary'
 
 // Local line item interface for UI (using unitPrice instead of unit_price_cents)
 interface LocalLineItem {
@@ -64,6 +66,11 @@ export default function QuoteBuilder({
   const [taxRate, setTaxRate] = useState(0) // Default 0% tax
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Product library modals
+  const [showProductPicker, setShowProductPicker] = useState(false)
+  const [showSaveToLibrary, setShowSaveToLibrary] = useState(false)
+  const [saveToLibraryLineItem, setSaveToLibraryLineItem] = useState<LocalLineItem | null>(null)
 
   // Generate quote number on mount if creating new quote
   useEffect(() => {
@@ -154,6 +161,53 @@ export default function QuoteBuilder({
         return updated
       })
     )
+  }
+
+  // Handle product selection from library
+  const handleProductSelect = (product: any, quantity?: number) => {
+    const newLineItem: LocalLineItem = {
+      id: crypto.randomUUID(),
+      description: product.name,
+      quantity: quantity || 1,
+      unitPrice: product.default_unit_price,
+      total: (quantity || 1) * product.default_unit_price
+    }
+
+    // Replace empty line items or add to existing ones
+    setLineItems(prev => {
+      const hasEmptyItems = prev.some(item => !item.description.trim() && item.unitPrice === 0)
+      if (hasEmptyItems && prev.length === 1) {
+        // Replace the single empty item
+        return [newLineItem]
+      } else {
+        // Add to existing items
+        return [...prev, newLineItem]
+      }
+    })
+
+    setShowProductPicker(false)
+  }
+
+  // Handle save line item to library
+  const handleSaveToLibrary = (lineItem: LocalLineItem) => {
+    if (!lineItem.description.trim()) {
+      setError('Please add a description to the line item before saving to library')
+      return
+    }
+    setSaveToLibraryLineItem(lineItem)
+    setShowSaveToLibrary(true)
+  }
+
+  // Handle successful save to library
+  const handleLibrarySaveSuccess = () => {
+    setSaveToLibraryLineItem(null)
+    setShowSaveToLibrary(false)
+  }
+
+  // Handle save to library modal close
+  const handleSaveToLibraryClose = () => {
+    setSaveToLibraryLineItem(null)
+    setShowSaveToLibrary(false)
   }
 
   // Calculate quote totals
@@ -362,16 +416,28 @@ export default function QuoteBuilder({
         <div>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">Line Items</h3>
-            <button
-              type="button"
-              onClick={addLineItem}
-              className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Item
-            </button>
+            <div className="flex space-x-2">
+              <button
+                type="button"
+                onClick={() => setShowProductPicker(true)}
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              >
+                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                Pick from Library
+              </button>
+              <button
+                type="button"
+                onClick={addLineItem}
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Item
+              </button>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -432,12 +498,23 @@ export default function QuoteBuilder({
                   </div>
                 </div>
 
-                <div className="col-span-1 flex justify-end">
+                <div className="col-span-1 flex flex-col space-y-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => handleSaveToLibrary(item)}
+                    disabled={!item.description.trim()}
+                    className="text-green-600 hover:text-green-500 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    title="Save to product library"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                  </button>
                   <button
                     type="button"
                     onClick={() => removeLineItem(item.id)}
                     disabled={lineItems.length === 1}
-                    className="text-red-600 hover:text-red-500 disabled:text-gray-400 disabled:cursor-not-allowed mt-6"
+                    className="text-red-600 hover:text-red-500 disabled:text-gray-400 disabled:cursor-not-allowed"
                     title="Remove item"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -528,6 +605,28 @@ export default function QuoteBuilder({
           )}
         </div>
       </form>
+
+      {/* Product Picker Modal */}
+      <ProductPicker
+        isOpen={showProductPicker}
+        onClose={() => setShowProductPicker(false)}
+        onProductSelect={handleProductSelect}
+      />
+
+      {/* Save to Library Modal */}
+      {saveToLibraryLineItem && (
+        <SaveToLibrary
+          isOpen={showSaveToLibrary}
+          onClose={handleSaveToLibraryClose}
+          onSaved={handleLibrarySaveSuccess}
+          lineItem={{
+            description: saveToLibraryLineItem.description,
+            quantity: saveToLibraryLineItem.quantity,
+            unit_price: saveToLibraryLineItem.unitPrice,
+            unit: 'each' // Default unit, could be enhanced later
+          }}
+        />
+      )}
     </div>
   )
 }

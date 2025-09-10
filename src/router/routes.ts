@@ -27,6 +27,8 @@ export const routes = {
   QUOTES_EDIT: '/quotes/:id/edit',
   QUOTES_VIEW: '/quotes/:id',
   
+  PRODUCTS: '/products',
+  
   INVOICES: '/invoices',
   INVOICES_NEW: '/invoices/new',
   INVOICES_EDIT: '/invoices/:id/edit',

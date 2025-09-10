@@ -20,6 +20,7 @@ import QuoteList from '../components/quotes/QuoteList';
 import QuoteNewPage from '../components/quotes/QuoteNewPage';
 import QuoteDetailPage from '../components/quotes/QuoteDetailPage';
 import QuoteEditPage from '../components/quotes/QuoteEditPage';
+import ProductLibrary from '../components/products/ProductLibrary';
 import { ResetPasswordForm } from '../components/features/ResetPasswordForm';
 import { routes } from './routes';
 
@@ -239,6 +240,17 @@ export function AppRouter() {
               <ProtectedRoute>
                 <Layout>
                   <QuoteEditPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.PRODUCTS}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ProductLibrary />
                 </Layout>
               </ProtectedRoute>
             }
