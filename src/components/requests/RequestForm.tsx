@@ -2,13 +2,24 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRequests } from '../../hooks/useRequests'
 import type { RequestInput } from '../../hooks/useRequests'
-import { useCustomers } from '../../hooks/useCustomers'
+import CustomerSearch from '../customers/CustomerSearch'
+
+interface Customer {
+  id: string
+  first_name: string
+  last_name: string
+  company_name?: string
+  email?: string
+  phone?: string
+  created_at: string
+  updated_at: string
+}
 
 export default function RequestForm() {
   const navigate = useNavigate()
   const { createRequest, loading: requestLoading, error } = useRequests()
-  const { customers, loading: customersLoading } = useCustomers()
   
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [formData, setFormData] = useState<RequestInput>({
     customer_id: '',
     title: '',
@@ -21,10 +32,26 @@ export default function RequestForm() {
   
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Update customer_id when customer is selected
+  const handleCustomerSelect = (customer: Customer | null) => {
+    setSelectedCustomer(customer)
+    setFormData(prev => ({
+      ...prev,
+      customer_id: customer ? customer.id : ''
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.customer_id || !formData.title.trim()) {
+    // Basic validation
+    if (!formData.customer_id) {
+      alert('Please select a customer')
+      return
+    }
+    
+    if (!formData.title.trim()) {
+      alert('Please enter a request title')
       return
     }
 
@@ -51,13 +78,7 @@ export default function RequestForm() {
     }))
   }
 
-  if (customersLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -88,25 +109,16 @@ export default function RequestForm() {
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">
           {/* Customer Selection */}
           <div>
-            <label htmlFor="customer_id" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="customer_search" className="block text-sm font-medium text-gray-700 mb-2">
               Customer *
             </label>
-            <select
-              id="customer_id"
-              name="customer_id"
-              value={formData.customer_id}
-              onChange={handleChange}
+            <CustomerSearch
+              selectedCustomer={selectedCustomer}
+              onCustomerSelect={handleCustomerSelect}
+              placeholder="Search customers by name, company, email, or phone..."
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select a customer</option>
-              {customers.map((customer) => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.first_name} {customer.last_name}
-                  {customer.company_name && ` (${customer.company_name})`}
-                </option>
-              ))}
-            </select>
+              error={!formData.customer_id && formData.title ? 'Please select a customer' : ''}
+            />
           </div>
 
           {/* Request Title */}

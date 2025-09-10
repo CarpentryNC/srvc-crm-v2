@@ -99,7 +99,7 @@ export default function PhotoUpload({
       if (uploadError) throw uploadError
 
       // Save file record to database
-      const { data: fileRecord, error: dbError } = await supabase
+      const { data: fileRecord, error: dbError } = await (supabase as any)
         .from('request_files')
         .insert({
           request_id: requestId,
@@ -111,7 +111,7 @@ export default function PhotoUpload({
           category: file.type.startsWith('image/') ? 'photo' : 'document'
         })
         .select()
-        .single() as any
+        .single()
 
       if (dbError) throw dbError
 
@@ -123,9 +123,9 @@ export default function PhotoUpload({
       // Notify parent component
       if (onUploadComplete && fileRecord) {
         onUploadComplete({
-          id: (fileRecord as any).id,
-          file_name: (fileRecord as any).file_name,
-          file_path: (fileRecord as any).file_path
+          id: fileRecord.id,
+          file_name: fileRecord.file_name,
+          file_path: fileRecord.file_path
         })
       }
 
