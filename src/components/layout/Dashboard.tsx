@@ -227,6 +227,13 @@ function QuickActions() {
       color: 'bg-purple-500'
     },
     {
+      name: 'Create Invoice',
+      description: 'Generate an invoice',
+      href: '/invoices/new',
+      icon: '💰',
+      color: 'bg-yellow-500'
+    },
+    {
       name: 'Schedule',
       description: 'View calendar',
       href: '/calendar',

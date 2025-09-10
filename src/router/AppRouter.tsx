@@ -20,6 +20,8 @@ import QuoteList from '../components/quotes/QuoteList';
 import QuoteNewPage from '../components/quotes/QuoteNewPage';
 import QuoteDetailPage from '../components/quotes/QuoteDetailPage';
 import QuoteEditPage from '../components/quotes/QuoteEditPage';
+import InvoiceList from '../components/invoices/InvoiceList';
+import InvoiceView from '../components/invoices/InvoiceView';
 import ProductLibrary from '../components/products/ProductLibrary';
 import Calendar from '../components/calendar/Calendar';
 import { ResetPasswordForm } from '../components/features/ResetPasswordForm';
@@ -262,7 +264,40 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <ComingSoon title="Invoice Management" />
+                  <InvoiceList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.INVOICES_NEW}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ComingSoon title="Create New Invoice" />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.INVOICES_VIEW}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <InvoiceView />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.INVOICES_EDIT}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ComingSoon title="Edit Invoice" />
                 </Layout>
               </ProtectedRoute>
             }
