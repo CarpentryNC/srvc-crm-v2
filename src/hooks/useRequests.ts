@@ -234,10 +234,10 @@ export function useRequests() {
             company_name,
             email,
             phone,
-            address,
-            city,
-            state,
-            zip_code
+            address_street,
+            address_city,
+            address_state,
+            address_zip
           ),
           assessments(*),
           request_files(*)
