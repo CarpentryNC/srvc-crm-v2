@@ -47,22 +47,37 @@ export default function QuoteConversionModal({
       const otherCosts = parseFloat(formData.other_costs) || 0
       const totalCost = laborCost + materialsCost + otherCosts
 
-      // Create quote record (placeholder - this would be a real quotes table)
-      const quoteData = {
-        customer_id: request.customer_id,
-        user_id: user.id,
-        request_id: request.id,
-        title: formData.title,
-        description: formData.description,
-        labor_cost: laborCost,
-        materials_cost: materialsCost,
-        other_costs: otherCosts,
-        total_cost: totalCost,
-        status: 'draft',
-        notes: formData.notes
-      }
+      // Convert dollars to cents for database storage
+      const subtotalCents = Math.round(totalCost * 100)
+      const taxCents = 0 // No tax calculation for now
+      const totalCents = subtotalCents + taxCents
 
-      // For now, we'll just update the request status and create a workflow conversion record
+      // Generate a unique quote number
+      const timestamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)
+      const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+      const quoteNumber = `Q-${timestamp}-${randomSuffix}`
+
+      // Create quote record in quotes table
+      const { data: newQuote, error: quoteError } = await (supabase as any)
+        .from('quotes')
+        .insert({
+          customer_id: request.customer_id,
+          user_id: user.id,
+          request_id: request.id,
+          quote_number: quoteNumber,
+          title: formData.title,
+          description: formData.description,
+          subtotal_cents: subtotalCents,
+          tax_cents: taxCents,
+          total_cents: totalCents,
+          status: 'draft'
+        })
+        .select()
+        .single()
+
+      if (quoteError) throw quoteError
+
+      // Create workflow conversion record to track the conversion
       const { error: conversionError } = await (supabase as any)
         .from('workflow_conversions')
         .insert({
@@ -70,8 +85,8 @@ export default function QuoteConversionModal({
           source_type: 'request',
           source_id: request.id,
           target_type: 'quote',
-          conversion_data: quoteData,
-          status: 'completed'
+          target_id: newQuote.id,
+          conversion_notes: `Converted request "${request.title}" to quote "${quoteNumber}" with total $${totalCost.toFixed(2)}`
         })
 
       if (conversionError) throw conversionError
