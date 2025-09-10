@@ -14,6 +14,8 @@ interface AuthContextType {
   updatePassword: (newPassword: string) => Promise<void>
   getSavedEmail: () => string
   clearSavedEmail: () => void
+  refreshSession: () => Promise<Session | null>
+  checkSession: () => Promise<Session | null>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -34,9 +36,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ? transformUser(session.user) : null)
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state change:', event, session?.user?.email)
+      
+      if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        setSession(session)
+        setUser(session?.user ? transformUser(session.user) : null)
+      } else if (event === 'SIGNED_IN') {
+        setSession(session)
+        setUser(session?.user ? transformUser(session.user) : null)
+      } else {
+        setSession(session)
+        setUser(session?.user ? transformUser(session.user) : null)
+      }
+      
       setLoading(false)
     })
 
@@ -108,6 +121,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('srvc_crm_remembered_email')
   }
 
+  const refreshSession = async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.refreshSession()
+      if (error) throw error
+      return session
+    } catch (error) {
+      console.error('Session refresh failed:', error)
+      throw error
+    }
+  }
+
+  const checkSession = async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession()
+      if (error) throw error
+      return session
+    } catch (error) {
+      console.error('Session check failed:', error)
+      return null
+    }
+  }
+
   const value = {
     user,
     session,
@@ -119,6 +154,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     updatePassword,
     getSavedEmail,
     clearSavedEmail,
+    refreshSession,
+    checkSession,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -237,20 +237,60 @@ export default function QuotePreview({ quote, onEdit, onStatusChange }: QuotePre
               )}
             </div>
 
-            {/* Line Items - Placeholder for now */}
+            {/* Line Items */}
             <div className="mb-8 print:mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 print:text-base">
                 Items & Services
               </h3>
               
-              {/* This would be populated from actual line items in a real implementation */}
-              <div className="bg-gray-50 p-4 rounded-lg print:bg-transparent print:border print:border-gray-300">
-                <p className="text-gray-600 text-sm italic">
-                  Line items will be displayed here. This is currently a placeholder as line items 
-                  are not stored in the database yet - they would typically be in a separate 
-                  quote_line_items table.
-                </p>
-              </div>
+              {quote.quote_line_items && quote.quote_line_items.length > 0 ? (
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden print:border print:border-gray-300">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 print:bg-gray-100">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider print:px-3 print:py-2">
+                          Description
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:px-3 print:py-2">
+                          Qty
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:px-3 print:py-2">
+                          Unit Price
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider print:px-3 print:py-2">
+                          Total
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200 print:divide-gray-300">
+                      {quote.quote_line_items
+                        .sort((a, b) => a.sort_order - b.sort_order)
+                        .map((item) => (
+                          <tr key={item.id} className="print:break-inside-avoid">
+                            <td className="px-6 py-4 text-sm text-gray-900 print:px-3 print:py-2 print:text-xs">
+                              {item.description}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 text-right print:px-3 print:py-2 print:text-xs">
+                              {item.quantity}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 text-right print:px-3 print:py-2 print:text-xs">
+                              {formatCurrency(item.unit_price)}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right print:px-3 print:py-2 print:text-xs">
+                              {formatCurrency(item.total_amount)}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="bg-gray-50 p-4 rounded-lg print:bg-transparent print:border print:border-gray-300">
+                  <p className="text-gray-600 text-sm italic">
+                    No line items have been added to this quote.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Totals */}

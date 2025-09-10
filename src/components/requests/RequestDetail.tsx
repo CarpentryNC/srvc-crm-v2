@@ -6,7 +6,6 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import PhotoUpload from './PhotoUpload'
 import AssessmentModal from './AssessmentModal'
-import QuoteConversionModal from './QuoteConversionModal'
 
 export default function RequestDetail() {
   const { id } = useParams<{ id: string }>()
@@ -20,7 +19,6 @@ export default function RequestDetail() {
   const [isUpdating, setIsUpdating] = useState(false)
   const [showAssessmentModal, setShowAssessmentModal] = useState(false)
   const [selectedAssessment, setSelectedAssessment] = useState<any>(null)
-  const [showQuoteModal, setShowQuoteModal] = useState(false)
 
   // Fetch request details locally to avoid global state conflicts
   useEffect(() => {
@@ -246,7 +244,17 @@ export default function RequestDetail() {
             )}
 
             <button 
-              onClick={() => setShowQuoteModal(true)}
+              onClick={async () => {
+                // Update request status to converted before navigating
+                try {
+                  await updateRequest(request.id, { status: 'converted' })
+                  navigate(`/quotes/new?requestId=${request.id}&customerId=${request.customer_id}`)
+                } catch (err) {
+                  console.error('Error updating request status:', err)
+                  // Navigate anyway, user can fix status later
+                  navigate(`/quotes/new?requestId=${request.id}&customerId=${request.customer_id}`)
+                }
+              }}
               className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium"
             >
               Convert to Quote
@@ -466,12 +474,6 @@ export default function RequestDetail() {
         }}
       />
       
-      {/* Quote Conversion Modal */}
-      <QuoteConversionModal
-        isOpen={showQuoteModal}
-        onClose={() => setShowQuoteModal(false)}
-        request={request}
-      />
     </div>
   )
 }

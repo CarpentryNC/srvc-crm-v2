@@ -88,7 +88,7 @@ export interface QuoteInput {
 }
 
 export function useQuotes() {
-  const { user } = useAuth()
+  const { user, checkSession, refreshSession } = useAuth()
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -101,9 +101,19 @@ export function useQuotes() {
     }
 
     async function fetchQuotes() {
+      if (!user?.id) return
+
       try {
         setLoading(true)
         setError(null)
+
+        // Check if user session is still valid before making requests
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        if (sessionError || !session) {
+          setError('Authentication session expired. Please sign in again.')
+          setLoading(false)
+          return
+        }
 
         const { data, error: fetchError } = await supabase
           .from('quotes')
@@ -168,7 +178,7 @@ export function useQuotes() {
           event: '*',
           schema: 'public',
           table: 'quotes',
-          filter: `user_id=eq.${user.id}`
+          filter: `user_id=eq.${user?.id}`
         },
         (payload) => {
           console.log('Quote change:', payload)
@@ -184,12 +194,33 @@ export function useQuotes() {
 
   // Create quote
   const createQuote = useCallback(async (quoteData: QuoteInput): Promise<Quote | null> => {
-    if (!user) return null
+    if (!user) {
+      setError('User not authenticated')
+      return null
+    }
 
     try {
       setError(null)
 
-      const { data, error: insertError } = await supabase
+      // Check if user session is still valid, try to refresh if needed
+      let session = await checkSession()
+      if (!session) {
+        console.log('Session invalid, attempting to refresh...')
+        try {
+          session = await refreshSession()
+        } catch (refreshError) {
+          console.error('Session refresh failed:', refreshError)
+          setError('Authentication session expired. Please sign in again.')
+          return null
+        }
+      }
+
+      if (!session) {
+        setError('Authentication session expired. Please sign in again.')
+        return null
+      }
+
+      const { data, error: insertError } = await (supabase as any)
         .from('quotes')
         .insert({
           ...quoteData,
@@ -241,7 +272,7 @@ export function useQuotes() {
       setError(err instanceof Error ? err.message : 'Failed to create quote')
       return null
     }
-  }, [user])
+  }, [user, checkSession, refreshSession])
 
   // Update quote
   const updateQuote = useCallback(async (id: string, updates: Partial<QuoteInput>): Promise<Quote | null> => {
@@ -250,7 +281,7 @@ export function useQuotes() {
     try {
       setError(null)
 
-      const { data, error: updateError } = await supabase
+      const { data, error: updateError } = await (supabase as any)
         .from('quotes')
         .update(updates)
         .eq('id', id)
@@ -469,7 +500,7 @@ export function useQuotes() {
     try {
       setError(null)
 
-      const { data, error: insertError } = await supabase
+      const { data, error: insertError } = await (supabase as any)
         .from('quote_line_items')
         .insert({
           quote_id: quoteId,
@@ -494,7 +525,7 @@ export function useQuotes() {
     try {
       setError(null)
 
-      const { data, error: updateError } = await supabase
+      const { data, error: updateError } = await (supabase as any)
         .from('quote_line_items')
         .update(updates)
         .eq('id', lineItemId)
@@ -551,7 +582,7 @@ export function useQuotes() {
         sort_order: item.sort_order || index + 1
       }))
 
-      const { data, error: insertError } = await supabase
+      const { data, error: insertError } = await (supabase as any)
         .from('quote_line_items')
         .insert(lineItemsWithQuoteId)
         .select('*')

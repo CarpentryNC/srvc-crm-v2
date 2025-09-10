@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useQuotes, type Quote, type QuoteInput, type QuoteLineItem, type QuoteLineItemInput } from '../../hooks/useQuotes'
+import { useQuotes, type Quote, type QuoteInput, type QuoteLineItemInput } from '../../hooks/useQuotes'
 import { useCustomers } from '../../hooks/useCustomers'
+import CustomerSearch from '../customers/CustomerSearch'
 
 // Local line item interface for UI (using unitPrice instead of unit_price_cents)
 interface LocalLineItem {
@@ -31,14 +32,13 @@ export default function QuoteBuilder({
     updateQuote, 
     generateQuoteNumber, 
     dollarsToCents, 
-    saveQuoteLineItems,
-    calculateQuoteTotalsFromLineItems 
+    saveQuoteLineItems
   } = useQuotes()
   const { customers } = useCustomers()
 
   // Form state
   const [formData, setFormData] = useState({
-    title: initialQuote?.title || '',
+    title: initialQuote?.title || (requestId ? 'Quote for Request' : ''),
     description: initialQuote?.description || '',
     customer_id: customerId || initialQuote?.customer_id || '',
     quote_number: initialQuote?.quote_number || '',
@@ -46,11 +46,14 @@ export default function QuoteBuilder({
     valid_until: initialQuote?.valid_until || ''
   })
 
+  // Selected customer for CustomerSearch component
+  const [selectedCustomerObject, setSelectedCustomerObject] = useState<any>(null)
+
   // Line items state (using local interface for UI)
   const [lineItems, setLineItems] = useState<LocalLineItem[]>([
     {
       id: crypto.randomUUID(),
-      description: '',
+      description: requestId ? 'Labor and Services' : '',
       quantity: 1,
       unitPrice: 0,
       total: 0
@@ -88,6 +91,14 @@ export default function QuoteBuilder({
     }
   }, [initialQuote?.quote_line_items])
 
+  // Initialize selected customer when editing or when customers load
+  useEffect(() => {
+    if (formData.customer_id && customers.length > 0) {
+      const customer = customers.find(c => c.id === formData.customer_id)
+      setSelectedCustomerObject(customer || null)
+    }
+  }, [formData.customer_id, customers])
+
   // Calculate line item totals
   useEffect(() => {
     setLineItems(items =>
@@ -101,6 +112,12 @@ export default function QuoteBuilder({
   // Handle form field changes
   const handleFormChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  // Handle customer selection
+  const handleCustomerSelect = (customer: any) => {
+    setSelectedCustomerObject(customer)
+    setFormData(prev => ({ ...prev, customer_id: customer ? customer.id : '' }))
   }
 
   // Add new line item
@@ -225,14 +242,22 @@ export default function QuoteBuilder({
   }
 
   const totals = calculateQuoteTotals()
-  const selectedCustomer = customers.find(c => c.id === formData.customer_id)
 
   return (
     <div className="bg-white shadow rounded-lg">
       <div className="px-6 py-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900">
-          {initialQuote?.id ? 'Edit Quote' : 'Create New Quote'}
+          {initialQuote?.id 
+            ? 'Edit Quote' 
+            : requestId 
+              ? 'Convert Request to Quote' 
+              : 'Create New Quote'}
         </h2>
+        {requestId && !initialQuote?.id && (
+          <p className="mt-1 text-sm text-gray-600">
+            Converting request to a professional quote with line items
+          </p>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -262,21 +287,12 @@ export default function QuoteBuilder({
             <label htmlFor="customer" className="block text-sm font-medium text-gray-700 mb-2">
               Customer *
             </label>
-            <select
-              id="customer"
-              value={formData.customer_id}
-              onChange={(e) => handleFormChange('customer_id', e.target.value)}
-              required
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value="">Select a customer...</option>
-              {customers.map(customer => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.first_name} {customer.last_name}
-                  {customer.company_name && ` (${customer.company_name})`}
-                </option>
-              ))}
-            </select>
+            <CustomerSearch
+              selectedCustomer={selectedCustomerObject}
+              onCustomerSelect={handleCustomerSelect}
+              placeholder="Search for a customer..."
+              required={true}
+            />
           </div>
         </div>
 
@@ -471,21 +487,21 @@ export default function QuoteBuilder({
         </div>
 
         {/* Customer Info Preview */}
-        {selectedCustomer && (
+        {selectedCustomerObject && (
           <div className="bg-blue-50 p-4 rounded-lg">
             <h4 className="text-sm font-medium text-blue-900 mb-2">Quote For:</h4>
             <div className="text-sm text-blue-800">
               <div className="font-medium">
-                {selectedCustomer.first_name} {selectedCustomer.last_name}
+                {selectedCustomerObject.first_name} {selectedCustomerObject.last_name}
               </div>
-              {selectedCustomer.company_name && (
-                <div>{selectedCustomer.company_name}</div>
+              {selectedCustomerObject.company_name && (
+                <div>{selectedCustomerObject.company_name}</div>
               )}
-              {selectedCustomer.email && (
-                <div>{selectedCustomer.email}</div>
+              {selectedCustomerObject.email && (
+                <div>{selectedCustomerObject.email}</div>
               )}
-              {selectedCustomer.phone && (
-                <div>{selectedCustomer.phone}</div>
+              {selectedCustomerObject.phone && (
+                <div>{selectedCustomerObject.phone}</div>
               )}
             </div>
           </div>
