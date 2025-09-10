@@ -17,6 +17,11 @@ export const routes = {
   JOBS_EDIT: '/jobs/:id/edit',
   JOBS_VIEW: '/jobs/:id',
   
+  REQUESTS: '/requests',
+  REQUESTS_NEW: '/requests/new',
+  REQUESTS_EDIT: '/requests/:id/edit',
+  REQUESTS_VIEW: '/requests/:id',
+  
   QUOTES: '/quotes',
   QUOTES_NEW: '/quotes/new',
   QUOTES_EDIT: '/quotes/:id/edit',

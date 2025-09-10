@@ -18,6 +18,7 @@ export function Sidebar({ isOpen = true, setIsOpen }: SidebarProps) {
   const menuItems: MenuItem[] = [
     { name: 'Dashboard', href: '/dashboard', icon: '📊', count: undefined },
     { name: 'Customers', href: '/customers', icon: '👥', count: 0 },
+    { name: 'Requests', href: '/requests', icon: '📝', count: 0 },
     { name: 'Jobs', href: '/jobs', icon: '🔨', count: 0 },
     { name: 'Quotes', href: '/quotes', icon: '📋', count: 0 },
     { name: 'Invoices', href: '/invoices', icon: '💰', count: 0 },

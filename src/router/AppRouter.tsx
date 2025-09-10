@@ -12,6 +12,8 @@ import { CustomerImport } from '../components/customers/CustomerImport';
 import JobList from '../components/jobs/JobList';
 import JobForm from '../components/jobs/JobForm';
 import JobDetail from '../components/jobs/JobDetail';
+import RequestList from '../components/requests/RequestList';
+import RequestForm from '../components/requests/RequestForm';
 import { ResetPasswordForm } from '../components/features/ResetPasswordForm';
 import { routes } from './routes';
 
@@ -143,6 +145,50 @@ export function AppRouter() {
               <ProtectedRoute>
                 <Layout>
                   <JobForm />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.REQUESTS}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RequestList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.REQUESTS_NEW}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RequestForm />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.REQUESTS_VIEW}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ComingSoon title="Request Detail" />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.REQUESTS_EDIT}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ComingSoon title="Request Edit" />
                 </Layout>
               </ProtectedRoute>
             }
