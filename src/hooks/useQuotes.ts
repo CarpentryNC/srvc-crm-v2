@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
@@ -149,7 +149,7 @@ export function useQuotes() {
   }, [user])
 
   // Create quote
-  const createQuote = async (quoteData: QuoteInput): Promise<Quote | null> => {
+  const createQuote = useCallback(async (quoteData: QuoteInput): Promise<Quote | null> => {
     if (!user) return null
 
     try {
@@ -197,10 +197,10 @@ export function useQuotes() {
       setError(err instanceof Error ? err.message : 'Failed to create quote')
       return null
     }
-  }
+  }, [user])
 
   // Update quote
-  const updateQuote = async (id: string, updates: Partial<QuoteInput>): Promise<Quote | null> => {
+  const updateQuote = useCallback(async (id: string, updates: Partial<QuoteInput>): Promise<Quote | null> => {
     if (!user) return null
 
     try {
@@ -247,10 +247,10 @@ export function useQuotes() {
       setError(err instanceof Error ? err.message : 'Failed to update quote')
       return null
     }
-  }
+  }, [user])
 
   // Get single quote
-  const getQuote = async (id: string): Promise<Quote | null> => {
+  const getQuote = useCallback(async (id: string): Promise<Quote | null> => {
     if (!user) return null
 
     try {
@@ -296,10 +296,10 @@ export function useQuotes() {
       setError(err instanceof Error ? err.message : 'Failed to fetch quote')
       return null
     }
-  }
+  }, [user])
 
   // Delete quote
-  const deleteQuote = async (id: string): Promise<boolean> => {
+  const deleteQuote = useCallback(async (id: string): Promise<boolean> => {
     if (!user) return false
 
     try {
@@ -318,7 +318,7 @@ export function useQuotes() {
       setError(err instanceof Error ? err.message : 'Failed to delete quote')
       return false
     }
-  }
+  }, [user])
 
   // Generate unique quote number
   const generateQuoteNumber = async (): Promise<string> => {

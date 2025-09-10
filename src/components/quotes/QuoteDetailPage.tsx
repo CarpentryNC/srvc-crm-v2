@@ -6,7 +6,7 @@ import QuotePreview from './QuotePreview'
 export default function QuoteDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { getQuote } = useQuotes()
+  const { quotes, getQuote, loading: quotesLoading } = useQuotes()
   const [quote, setQuote] = useState<Quote | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -17,6 +17,20 @@ export default function QuoteDetailPage() {
         return
       }
 
+      // First try to find the quote in the existing quotes array
+      const existingQuote = quotes.find(q => q.id === id)
+      if (existingQuote && !quotesLoading) {
+        setQuote(existingQuote)
+        setLoading(false)
+        return
+      }
+
+      // If not found and quotes are still loading, wait
+      if (quotesLoading) {
+        return
+      }
+
+      // If quotes are loaded but quote not found, fetch individually
       try {
         setLoading(true)
         const quoteData = await getQuote(id)
@@ -34,7 +48,7 @@ export default function QuoteDetailPage() {
     }
 
     fetchQuote()
-  }, [id, getQuote, navigate])
+  }, [id, quotes, quotesLoading, getQuote, navigate])
 
   if (loading) {
     return (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
@@ -217,7 +217,7 @@ export function useRequests() {
   }
 
   // Get request by ID
-  const getRequest = async (id: string): Promise<Request | null> => {
+  const getRequest = useCallback(async (id: string): Promise<Request | null> => {
     if (!user) return null
 
     try {
@@ -256,7 +256,7 @@ export function useRequests() {
       setError(err instanceof Error ? err.message : 'Failed to fetch request')
       return null
     }
-  }
+  }, [user])
 
   // Real-time subscription
   useEffect(() => {

@@ -6,7 +6,7 @@ import QuoteBuilder from './QuoteBuilder'
 export default function QuoteEditPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { getQuote } = useQuotes()
+  const { quotes, getQuote, loading: quotesLoading } = useQuotes()
   const [quote, setQuote] = useState<Quote | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -17,6 +17,20 @@ export default function QuoteEditPage() {
         return
       }
 
+      // First try to find the quote in the existing quotes array
+      const existingQuote = quotes.find(q => q.id === id)
+      if (existingQuote && !quotesLoading) {
+        setQuote(existingQuote)
+        setLoading(false)
+        return
+      }
+
+      // If not found and quotes are still loading, wait
+      if (quotesLoading) {
+        return
+      }
+
+      // If quotes are loaded but quote not found, fetch individually
       try {
         setLoading(true)
         const quoteData = await getQuote(id)
@@ -34,7 +48,7 @@ export default function QuoteEditPage() {
     }
 
     fetchQuote()
-  }, [id, getQuote, navigate])
+  }, [id, quotes, quotesLoading, getQuote, navigate])
 
   const handleSave = (updatedQuote: Quote) => {
     navigate(`/quotes/${updatedQuote.id}`)
