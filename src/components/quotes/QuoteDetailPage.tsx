@@ -50,6 +50,16 @@ export default function QuoteDetailPage() {
     fetchQuote()
   }, [id, quotes, quotesLoading, getQuote, navigate])
 
+  // Update quote when it changes in the quotes array (real-time updates)
+  useEffect(() => {
+    if (id && quotes.length > 0 && !quotesLoading) {
+      const updatedQuote = quotes.find(q => q.id === id)
+      if (updatedQuote && updatedQuote.updated_at !== quote?.updated_at) {
+        setQuote(updatedQuote)
+      }
+    }
+  }, [quotes, id, quotesLoading, quote?.updated_at])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
