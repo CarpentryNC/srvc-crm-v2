@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useRequests } from '../../hooks/useRequests'
 import type { Request } from '../../hooks/useRequests'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../hooks/useAuth'
 import PhotoUpload from './PhotoUpload'
 import AssessmentModal from './AssessmentModal'
 import QuoteConversionModal from './QuoteConversionModal'
@@ -9,33 +11,72 @@ import QuoteConversionModal from './QuoteConversionModal'
 export default function RequestDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { getRequest, updateRequest, deleteRequest, error } = useRequests()
+  const { user } = useAuth()
+  const { updateRequest, deleteRequest, error } = useRequests()
   
   const [request, setRequest] = useState<Request | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showLoadingSpinner, setShowLoadingSpinner] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const [showAssessmentModal, setShowAssessmentModal] = useState(false)
   const [selectedAssessment, setSelectedAssessment] = useState<any>(null)
   const [showQuoteModal, setShowQuoteModal] = useState(false)
 
-  // Fetch request details
+  // Fetch request details locally to avoid global state conflicts
   useEffect(() => {
     async function fetchRequest() {
-      if (!id) return
+      if (!id || !user) {
+        setLoading(false)
+        return
+      }
       
       setLoading(true)
+      
+      // Show spinner only after a slight delay to prevent flashing
+      const spinnerTimeout = setTimeout(() => {
+        setShowLoadingSpinner(true)
+      }, 100)
+      
       try {
-        const requestData = await getRequest(id)
-        setRequest(requestData)
+        const { data, error: fetchError } = await supabase
+          .from('requests')
+          .select(`
+            *,
+            customer:customers!inner(
+              id,
+              first_name,
+              last_name,
+              company_name,
+              email,
+              phone,
+              address_street,
+              address_city,
+              address_state,
+              address_zip
+            ),
+            assessments(*),
+            request_files(*)
+          `)
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .single()
+
+        if (fetchError) {
+          throw fetchError
+        }
+
+        setRequest(data)
       } catch (err) {
         console.error('Error fetching request:', err)
       } finally {
+        clearTimeout(spinnerTimeout)
+        setShowLoadingSpinner(false)
         setLoading(false)
       }
     }
 
     fetchRequest()
-  }, [id, getRequest])
+  }, [id, user])
 
   // Update request status
   const handleStatusUpdate = async (newStatus: Request['status']) => {
@@ -88,7 +129,7 @@ export default function RequestDetail() {
     }
   }
 
-  if (loading) {
+  if (loading && showLoadingSpinner) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
