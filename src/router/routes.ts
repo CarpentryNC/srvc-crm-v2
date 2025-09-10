@@ -2,6 +2,7 @@ export const routes = {
   // Public routes
   HOME: '/',
   LOGIN: '/login',
+  RESET_PASSWORD: '/reset-password',
   
   // Protected routes
   DASHBOARD: '/dashboard',

@@ -8,8 +8,12 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   signUp: (email: string, password: string) => Promise<void>
-  signIn: (email: string, password: string) => Promise<void>
+  signIn: (email: string, password: string, rememberEmail?: boolean) => Promise<void>
   signOut: () => Promise<void>
+  resetPassword: (email: string) => Promise<void>
+  updatePassword: (newPassword: string) => Promise<void>
+  getSavedEmail: () => string
+  clearSavedEmail: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -62,17 +66,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, rememberEmail = false) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
     if (error) throw error
+    
+    // Save email to localStorage if rememberEmail is true
+    if (rememberEmail) {
+      localStorage.setItem('srvc_crm_remembered_email', email)
+    } else {
+      localStorage.removeItem('srvc_crm_remembered_email')
+    }
   }
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
+  }
+
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`
+    })
+    if (error) throw error
+  }
+
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    })
+    if (error) throw error
+  }
+
+  const getSavedEmail = (): string => {
+    return localStorage.getItem('srvc_crm_remembered_email') || ''
+  }
+
+  const clearSavedEmail = () => {
+    localStorage.removeItem('srvc_crm_remembered_email')
   }
 
   const value = {
@@ -82,6 +115,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signIn,
     signOut,
+    resetPassword,
+    updatePassword,
+    getSavedEmail,
+    clearSavedEmail,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -12,6 +12,7 @@ import { CustomerImport } from '../components/customers/CustomerImport';
 import JobList from '../components/jobs/JobList';
 import JobForm from '../components/jobs/JobForm';
 import JobDetail from '../components/jobs/JobDetail';
+import { ResetPasswordForm } from '../components/features/ResetPasswordForm';
 import { routes } from './routes';
 
 // Placeholder components for routes that don't exist yet
@@ -34,6 +35,7 @@ export function AppRouter() {
         <Routes>
           {/* Public routes */}
           <Route path={routes.HOME} element={<SimpleLandingPage />} />
+          <Route path={routes.RESET_PASSWORD} element={<ResetPasswordForm />} />
           
           {/* Protected routes */}
           <Route
