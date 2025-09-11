@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   CalendarIcon, 
   ChevronLeftIcon, 
@@ -9,7 +9,6 @@ import {
   EyeIcon
 } from '@heroicons/react/24/outline';
 import { useJobs } from '../../hooks/useJobs';
-import { useCustomers } from '../../hooks/useCustomers';
 import type { JobWithCustomer } from '../../types/job';
 
 interface JobSchedulerProps {
@@ -35,11 +34,9 @@ export default function JobScheduler({
   className = ''
 }: JobSchedulerProps) {
   const { jobs, loading } = useJobs();
-  const { customers } = useCustomers();
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<ViewType>('month');
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   // Filter jobs with scheduled dates
   const scheduledJobs = useMemo(() => {
@@ -69,16 +66,6 @@ export default function JobScheduler({
     });
   }, [scheduledJobs]);
 
-  // Get events for current view
-  const getEventsForView = () => {
-    const start = getViewStart();
-    const end = getViewEnd();
-    
-    return calendarEvents.filter(event => 
-      event.start >= start && event.start <= end
-    );
-  };
-
   const getViewStart = () => {
     const date = new Date(currentDate);
     
@@ -95,25 +82,6 @@ export default function JobScheduler({
     }
     
     date.setHours(0, 0, 0, 0);
-    return date;
-  };
-
-  const getViewEnd = () => {
-    const date = new Date(currentDate);
-    
-    switch (view) {
-      case 'month':
-        date.setMonth(date.getMonth() + 1, 1);
-        date.setDate(date.getDate() - date.getDay() + 6); // End on Saturday
-        break;
-      case 'week':
-        date.setDate(date.getDate() - date.getDay() + 6); // End on Saturday
-        break;
-      case 'day':
-        break;
-    }
-    
-    date.setHours(23, 59, 59, 999);
     return date;
   };
 
@@ -327,7 +295,6 @@ export default function JobScheduler({
                   className={`min-h-24 p-2 border-r border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
                     !isCurrentMonthDay ? 'bg-gray-50 dark:bg-gray-900/50 text-gray-400 dark:text-gray-600' : ''
                   } ${isTodayDate ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
-                  onClick={() => setSelectedDate(date)}
                 >
                   <div className={`text-sm font-medium mb-1 ${
                     isTodayDate ? 'text-blue-600 dark:text-blue-400' : 
