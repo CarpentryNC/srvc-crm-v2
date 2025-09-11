@@ -102,3 +102,6 @@ config/secrets.js
 # Local configuration overrides
 config/local.js
 config/local.json
+
+# Development utilities and test files
+dev-utils/
