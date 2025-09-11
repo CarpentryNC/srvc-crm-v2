@@ -7,8 +7,10 @@
   
   # Node.js version to use for builds
   [build.environment]
-    NODE_VERSION = "18"
-    NPM_VERSION = "9"
+    NODE_VERSION = "20.19.0"
+    NPM_VERSION = "10"
+    # Disable secrets scanning for VITE_ environment variables (they are meant to be public)
+    SECRETS_SCAN_ENABLED = "false"
 
 # Handle client-side routing for Single Page Application
 [[redirects]]
