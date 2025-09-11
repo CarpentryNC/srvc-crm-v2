@@ -150,9 +150,9 @@ CREATE INDEX workflow_conversions_user_id_idx ON workflow_conversions(user_id);
 CREATE TRIGGER update_requests_updated_at
   BEFORE UPDATE ON requests
   FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
+  EXECUTE FUNCTION public.handle_updated_at();
 
 CREATE TRIGGER update_assessments_updated_at
   BEFORE UPDATE ON assessments
   FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
+  EXECUTE FUNCTION public.handle_updated_at();

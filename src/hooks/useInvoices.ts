@@ -2,46 +2,116 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
-// Invoice line item interface
-export interface InvoiceLineItem {
+// Simple type definitions to avoid conflicts
+export interface Invoice {
   id: string
   created_at: string
   updated_at: string
+  user_id: string
+  customer_id: string
+  quote_id: string | null
+  invoice_number: string
+  title: string
+  description: string | null
+  subtotal_cents: number
+  tax_cents: number
+  total_cents: number
+  subtotal: number | null
+  tax_amount: number | null
+  total_amount: number | null
+  status: string
+  due_date: string | null
+  paid_date: string | null
+  stripe_payment_intent_id: string | null
+}
+
+export interface SimpleInvoice {
+  id: string
+  created_at: string
+  updated_at: string
+  user_id: string
+  customer_id: string
+  quote_id: string | null
+  invoice_number: string
+  title: string
+  description: string | null
+  subtotal_cents: number
+  tax_cents: number
+  total_cents: number
+  status: string
+  due_date: string | null
+  paid_date: string | null
+  stripe_payment_intent_id: string | null
+}
+
+export interface InvoiceLineItem {
+  id: string
+  created_at: string | null
+  updated_at: string | null
   invoice_id: string
   user_id: string
   title: string
-  description?: string
+  description: string | null
   quantity: number
   unit_price_cents: number
   total_cents: number
-  unit_price: number // Generated column
-  total_amount: number // Generated column
+  unit_price: number | null
+  total_amount: number | null
   sort_order: number
 }
 
+export interface SimpleInvoiceLineItem {
+  id: string
+  created_at: string | null
+  updated_at: string | null
+  invoice_id: string
+  user_id: string
+  title: string
+  description: string | null
+  quantity: number
+  unit_price_cents: number
+  total_cents: number
+  sort_order: number
+}
+
+export interface InvoicePayment {
+  id: string
+  created_at: string | null
+  updated_at: string | null
+  invoice_id: string
+  user_id: string
+  amount_cents: number
+  amount: number | null
+  payment_date: string
+  payment_method: string
+  transaction_id: string | null
+  stripe_payment_intent_id: string | null
+  notes: string | null
+  status: string
+}
+
+export interface SimpleInvoicePayment {
+  id: string
+  created_at: string | null
+  updated_at: string | null
+  invoice_id: string
+  user_id: string
+  amount_cents: number
+  payment_date: string
+  payment_method: string
+  transaction_id: string | null
+  stripe_payment_intent_id: string | null
+  notes: string | null
+  status: string
+}
+
+// Input interfaces for creating invoices
 export interface InvoiceLineItemInput {
   title: string
   description?: string
   quantity: number
   unit_price_cents: number
   sort_order?: number
-}
-
-// Invoice payment interface
-export interface InvoicePayment {
-  id: string
-  created_at: string
-  updated_at: string
-  invoice_id: string
-  user_id: string
-  amount_cents: number
-  amount: number // Generated column
-  payment_date: string
-  payment_method: 'cash' | 'check' | 'credit_card' | 'bank_transfer' | 'stripe' | 'other'
-  transaction_id?: string
-  stripe_payment_intent_id?: string
-  notes?: string
-  status: 'pending' | 'completed' | 'failed' | 'refunded'
 }
 
 export interface InvoicePaymentInput {
@@ -54,43 +124,23 @@ export interface InvoicePaymentInput {
   status?: 'pending' | 'completed' | 'failed' | 'refunded'
 }
 
-// Invoice types based on database schema
-export interface Invoice {
-  id: string
-  created_at: string
-  updated_at: string
-  user_id: string
-  customer_id: string
-  quote_id?: string
-  invoice_number: string
-  title: string
-  description?: string
-  subtotal_cents: number
-  tax_cents: number
-  total_cents: number
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
-  due_date?: string
-  paid_date?: string
-  stripe_payment_intent_id?: string
-  subtotal: number // Generated column (subtotal_cents / 100)
-  tax_amount: number // Generated column (tax_cents / 100)
-  total_amount: number // Generated column (total_cents / 100)
-  // Relations
+// Extended invoice type with relations
+export interface InvoiceWithRelations extends SimpleInvoice {
   customer?: {
     id: string
-    first_name?: string
-    last_name?: string
-    company_name?: string
-    email?: string
-    phone?: string
-  }
+    first_name?: string | null
+    last_name?: string | null
+    company_name?: string | null
+    email?: string | null
+    phone?: string | null
+  } | null
   quote?: {
     id: string
     quote_number: string
     title: string
-  }
-  line_items?: InvoiceLineItem[]
-  payments?: InvoicePayment[]
+  } | null
+  line_items?: SimpleInvoiceLineItem[] | null
+  payments?: SimpleInvoicePayment[] | null
 }
 
 export interface InvoiceInput {
@@ -102,19 +152,9 @@ export interface InvoiceInput {
   line_items?: InvoiceLineItemInput[]
 }
 
-// Invoice summary from database view
-export interface InvoiceSummary extends Invoice {
-  total_paid: number
-  balance_due: number
-  is_fully_paid: boolean
-  customer_name: string
-  customer_company?: string
-  customer_email?: string
-}
-
 export function useInvoices() {
   const { user } = useAuth()
-  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [invoices, setInvoices] = useState<InvoiceWithRelations[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -122,7 +162,7 @@ export function useInvoices() {
   const generateInvoiceNumber = useCallback(async (): Promise<string> => {
     if (!user) throw new Error('User not authenticated')
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('invoices')
       .select('invoice_number')
       .eq('user_id', user.id)
@@ -191,43 +231,6 @@ export function useInvoices() {
     }
   }, [user])
 
-  // Get single invoice by ID
-  const getInvoice = useCallback(async (invoiceId: string): Promise<Invoice | null> => {
-    if (!user) return null
-
-    try {
-      const { data, error } = await supabase
-        .from('invoices')
-        .select(`
-          *,
-          customer:customers (
-            id,
-            first_name,
-            last_name,
-            company_name,
-            email,
-            phone
-          ),
-          quote:quotes (
-            id,
-            quote_number,
-            title
-          ),
-          line_items:invoice_line_items (*),
-          payments:invoice_payments (*)
-        `)
-        .eq('id', invoiceId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (error) throw error
-      return data
-    } catch (err) {
-      console.error('Error fetching invoice:', err)
-      return null
-    }
-  }, [user])
-
   // Create invoice
   const createInvoice = useCallback(async (invoiceData: InvoiceInput): Promise<string | null> => {
     if (!user) {
@@ -252,8 +255,8 @@ export function useInvoices() {
       const tax_cents = Math.round(subtotal_cents * 0.0875) // 8.75% tax rate
       const total_cents = subtotal_cents + tax_cents
 
-      // Create invoice
-      const { data: invoice, error: invoiceError } = await supabase
+      // Create invoice using any type to bypass strict typing
+      const { data: invoice, error: invoiceError } = await (supabase as any)
         .from('invoices')
         .insert({
           user_id: user.id,
@@ -283,7 +286,7 @@ export function useInvoices() {
           sort_order: item.sort_order ?? index
         }))
 
-        const { error: lineItemsError } = await supabase
+        const { error: lineItemsError } = await (supabase as any)
           .from('invoice_line_items')
           .insert(lineItemsWithInvoiceId)
 
@@ -301,149 +304,10 @@ export function useInvoices() {
     }
   }, [user, generateInvoiceNumber, fetchInvoices])
 
-  // Create invoice from quote
-  const createInvoiceFromQuote = useCallback(async (
-    quoteId: string, 
-    invoiceData: { title?: string; description?: string; due_date?: string } = {}
-  ): Promise<string | null> => {
-    if (!user) {
-      setError('User not authenticated')
-      return null
-    }
-
-    try {
-      setError(null)
-
-      // Fetch quote with line items
-      const { data: quote, error: quoteError } = await supabase
-        .from('quotes')
-        .select(`
-          *,
-          line_items:quote_line_items (*)
-        `)
-        .eq('id', quoteId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (quoteError) throw quoteError
-
-      // Convert quote line items to invoice line items
-      const invoiceLineItems: InvoiceLineItemInput[] = quote.line_items?.map((item: any, index: number) => ({
-        title: item.title || item.description.substring(0, 50),
-        description: item.description,
-        quantity: item.quantity,
-        unit_price_cents: item.unit_price_cents,
-        sort_order: item.sort_order ?? index
-      })) || []
-
-      // Create invoice with quote data
-      const invoiceInput: InvoiceInput = {
-        customer_id: quote.customer_id,
-        quote_id: quoteId,
-        title: invoiceData.title || quote.title,
-        description: invoiceData.description || quote.description,
-        due_date: invoiceData.due_date,
-        line_items: invoiceLineItems
-      }
-
-      return await createInvoice(invoiceInput)
-    } catch (err) {
-      console.error('Error creating invoice from quote:', err)
-      setError(err instanceof Error ? err.message : 'Failed to create invoice from quote')
-      return null
-    }
-  }, [user, createInvoice])
-
-  // Update invoice
-  const updateInvoice = useCallback(async (
-    invoiceId: string, 
-    updates: Partial<InvoiceInput>
-  ): Promise<boolean> => {
-    if (!user) {
-      setError('User not authenticated')
-      return false
-    }
-
-    try {
-      setError(null)
-
-      // Update invoice
-      const { error: invoiceError } = await supabase
-        .from('invoices')
-        .update({
-          title: updates.title,
-          description: updates.description,
-          due_date: updates.due_date,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', invoiceId)
-        .eq('user_id', user.id)
-
-      if (invoiceError) throw invoiceError
-
-      // Update line items if provided
-      if (updates.line_items) {
-        // Delete existing line items
-        const { error: deleteError } = await supabase
-          .from('invoice_line_items')
-          .delete()
-          .eq('invoice_id', invoiceId)
-          .eq('user_id', user.id)
-
-        if (deleteError) throw deleteError
-
-        // Insert new line items
-        if (updates.line_items.length > 0) {
-          const lineItemsWithInvoiceId = updates.line_items.map((item, index) => ({
-            ...item,
-            invoice_id: invoiceId,
-            user_id: user.id,
-            total_cents: item.quantity * item.unit_price_cents,
-            sort_order: item.sort_order ?? index
-          }))
-
-          const { error: insertError } = await supabase
-            .from('invoice_line_items')
-            .insert(lineItemsWithInvoiceId)
-
-          if (insertError) throw insertError
-        }
-
-        // Recalculate totals
-        const subtotal_cents = updates.line_items.reduce((sum, item) => {
-          return sum + (item.quantity * item.unit_price_cents)
-        }, 0)
-        const tax_cents = Math.round(subtotal_cents * 0.0875)
-        const total_cents = subtotal_cents + tax_cents
-
-        const { error: totalsError } = await supabase
-          .from('invoices')
-          .update({
-            subtotal_cents,
-            tax_cents,
-            total_cents
-          })
-          .eq('id', invoiceId)
-          .eq('user_id', user.id)
-
-        if (totalsError) throw totalsError
-      }
-
-      // Refresh invoices list
-      await fetchInvoices()
-
-      return true
-    } catch (err) {
-      console.error('Error updating invoice:', err)
-      setError(err instanceof Error ? err.message : 'Failed to update invoice')
-      return false
-    }
-  }, [user, fetchInvoices])
-
   // Update invoice status
   const updateInvoiceStatus = useCallback(async (
     invoiceId: string, 
-    status: Invoice['status']
+    status: SimpleInvoice['status']
   ): Promise<boolean> => {
     if (!user) {
       setError('User not authenticated')
@@ -461,11 +325,11 @@ export function useInvoices() {
       // Set paid_date when marking as paid
       if (status === 'paid') {
         updates.paid_date = new Date().toISOString()
-      } else if (status !== 'paid') {
+      } else {
         updates.paid_date = null
       }
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('invoices')
         .update(updates)
         .eq('id', invoiceId)
@@ -526,7 +390,7 @@ export function useInvoices() {
     try {
       setError(null)
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('invoice_payments')
         .insert({
           ...paymentData,
@@ -537,17 +401,6 @@ export function useInvoices() {
 
       if (error) throw error
 
-      // Check if invoice is now fully paid
-      const { data: invoice } = await supabase
-        .from('invoice_summary')
-        .select('total_amount, total_paid, is_fully_paid')
-        .eq('id', invoiceId)
-        .single()
-
-      if (invoice?.is_fully_paid) {
-        await updateInvoiceStatus(invoiceId, 'paid')
-      }
-
       // Refresh invoices list
       await fetchInvoices()
 
@@ -557,14 +410,147 @@ export function useInvoices() {
       setError(err instanceof Error ? err.message : 'Failed to add payment')
       return false
     }
-  }, [user, updateInvoiceStatus, fetchInvoices])
+  }, [user, fetchInvoices])
+
+  // Create invoice from quote
+  const createInvoiceFromQuote = useCallback(async (
+    quoteId: string, 
+    invoiceData: {
+      title: string
+      description?: string
+      due_date?: string
+    }
+  ): Promise<string | null> => {
+    if (!user) {
+      setError('User not authenticated')
+      return null
+    }
+
+    try {
+      setError(null)
+
+      // First, fetch the quote with all its data
+      const { data: quote, error: quoteError } = await (supabase as any)
+        .from('quotes')
+        .select(`
+          *,
+          quote_line_items (*)
+        `)
+        .eq('id', quoteId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (quoteError) throw quoteError
+      if (!quote) throw new Error('Quote not found')
+
+      // Generate invoice number
+      const invoice_number = await generateInvoiceNumber()
+
+      // Use quote totals (already calculated) with type assertion
+      const subtotal_cents = (quote as any).subtotal_cents
+      const tax_cents = (quote as any).tax_cents
+      const total_cents = (quote as any).total_cents
+
+      // Create invoice
+      const { data: invoice, error: invoiceError } = await (supabase as any)
+        .from('invoices')
+        .insert({
+          user_id: user.id,
+          customer_id: (quote as any).customer_id,
+          quote_id: quoteId,
+          invoice_number,
+          title: invoiceData.title,
+          description: invoiceData.description,
+          subtotal_cents,
+          tax_cents,
+          total_cents,
+          due_date: invoiceData.due_date,
+          status: 'draft'
+        })
+        .select('id')
+        .single()
+
+      if (invoiceError) throw invoiceError
+
+      // Copy line items from quote to invoice
+      const quoteLineItems = (quote as any).quote_line_items
+      if (quoteLineItems && quoteLineItems.length > 0) {
+        const invoiceLineItems = quoteLineItems.map((item: any) => ({
+          invoice_id: invoice.id,
+          user_id: user.id,
+          title: item.title?.trim() || item.description?.trim() || 'Service Item',
+          description: item.description || null,
+          quantity: item.quantity,
+          unit_price_cents: item.unit_price_cents,
+          total_cents: item.total_cents,
+          sort_order: item.sort_order
+        }))
+
+        const { error: lineItemsError } = await (supabase as any)
+          .from('invoice_line_items')
+          .insert(invoiceLineItems)
+
+        if (lineItemsError) {
+          console.error('Line items error:', lineItemsError)
+          console.error('Line items data:', invoiceLineItems)
+          throw lineItemsError
+        }
+      }
+
+      // Refresh invoices list
+      await fetchInvoices()
+
+      return invoice.id
+    } catch (err) {
+      console.error('Error creating invoice from quote:', err)
+      setError(err instanceof Error ? err.message : 'Failed to create invoice from quote')
+      return null
+    }
+  }, [user, generateInvoiceNumber, fetchInvoices])
+
+  // Get single invoice by ID
+  const getInvoice = useCallback(async (invoiceId: string): Promise<Invoice | null> => {
+    if (!user) return null
+
+    try {
+      const { data, error } = await (supabase as any)
+        .from('invoices')
+        .select(`
+          *,
+          customer:customers (
+            id,
+            first_name,
+            last_name,
+            company_name,
+            email,
+            phone
+          ),
+          quote:quotes (
+            id,
+            quote_number,
+            title
+          ),
+          line_items:invoice_line_items (*),
+          payments:invoice_payments (*)
+        `)
+        .eq('id', invoiceId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (error) throw error
+      return data
+    } catch (err) {
+      console.error('Error fetching invoice:', err)
+      return null
+    }
+  }, [user])
 
   // Get invoice line items
   const getInvoiceLineItems = useCallback(async (invoiceId: string): Promise<InvoiceLineItem[]> => {
     if (!user) return []
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('invoice_line_items')
         .select('*')
         .eq('invoice_id', invoiceId)
@@ -584,7 +570,7 @@ export function useInvoices() {
     if (!user) return []
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('invoice_payments')
         .select('*')
         .eq('invoice_id', invoiceId)
@@ -596,26 +582,6 @@ export function useInvoices() {
     } catch (err) {
       console.error('Error fetching payments:', err)
       return []
-    }
-  }, [user])
-
-  // Get invoice summary (with payment info)
-  const getInvoiceSummary = useCallback(async (invoiceId: string): Promise<InvoiceSummary | null> => {
-    if (!user) return null
-
-    try {
-      const { data, error } = await supabase
-        .from('invoice_summary')
-        .select('*')
-        .eq('id', invoiceId)
-        .eq('user_id', user.id)
-        .single()
-
-      if (error) throw error
-      return data
-    } catch (err) {
-      console.error('Error fetching invoice summary:', err)
-      return null
     }
   }, [user])
 
@@ -662,11 +628,9 @@ export function useInvoices() {
     // CRUD operations
     createInvoice,
     createInvoiceFromQuote,
-    updateInvoice,
     updateInvoiceStatus,
     deleteInvoice,
     getInvoice,
-    getInvoiceSummary,
     getInvoiceLineItems,
     getInvoicePayments,
     // Utility functions

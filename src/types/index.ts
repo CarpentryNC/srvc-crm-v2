@@ -5,6 +5,8 @@ export type Customer = Database['public']['Tables']['customers']['Row']
 export type Job = Database['public']['Tables']['jobs']['Row']
 export type Quote = Database['public']['Tables']['quotes']['Row']
 export type Invoice = Database['public']['Tables']['invoices']['Row']
+export type InvoiceLineItem = Database['public']['Tables']['invoice_line_items']['Row']
+export type InvoicePayment = Database['public']['Tables']['invoice_payments']['Row']
 export type SubscriptionPlan = Database['public']['Tables']['subscription_plans']['Row']
 export type UserSubscription = Database['public']['Tables']['user_subscriptions']['Row']
 

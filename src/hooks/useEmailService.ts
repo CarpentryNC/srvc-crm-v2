@@ -621,8 +621,10 @@ Email: your-email@company.com
 
       // Check if we're running in local development
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      // Allow forcing production mode with URL parameter: ?emailMode=production
+      const forceProduction = new URLSearchParams(window.location.search).get('emailMode') === 'production'
       
-      if (isLocal) {
+      if (isLocal && !forceProduction) {
         // Development mode: simulate email sending
         console.log('🚀 DEVELOPMENT MODE: Simulating quote email send')
         console.log('📧 Email Request:', emailRequest)
@@ -633,20 +635,44 @@ Email: your-email@company.com
         
         console.log('✅ Quote email sent successfully (development mode)')
       } else {
-        // Production mode: use the actual edge function
-        const { data, error } = await supabase.functions.invoke('send-email', {
-          body: emailRequest
+        // Production mode: use the remote production edge function
+        console.log('🚀 PRODUCTION MODE: Sending quote email via Remote Edge Function')
+        console.log('📧 Email Request:', emailRequest)
+        
+        // Get the current session to pass auth token
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (!session?.access_token) {
+          throw new Error('No valid session found. Please log in again.')
+        }
+        
+        console.log('🔑 Using session token for authentication')
+        
+        // Use the existing supabase client but with production URL override
+        const response = await fetch('https://lrvzqxyqrrjusvwazaak.supabase.co/functions/v1/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxydnpxeHlxcnJqdXN2d2F6YWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyODM3NTUsImV4cCI6MjA3Mjg1OTc1NX0.fGa3ojCVJeSxfK7CJjswS4NchPbtRuzuOJIB6tME97o'
+          },
+          body: JSON.stringify(emailRequest)
         })
 
-        if (error) {
-          throw new Error(`Failed to send email: ${error.message}`)
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('❌ HTTP Error:', response.status, errorText)
+          throw new Error(`HTTP ${response.status}: ${errorText}`)
         }
 
-        if (!data?.success) {
+        const data = await response.json()
+        
+        if (!data?.success && !data?.messageId) {
+          console.error('❌ Email sending failed:', data)
           throw new Error(data?.error || 'Failed to send email')
         }
 
-        console.log('Email sent successfully:', data)
+        console.log('✅ Quote email sent successfully via Remote Edge Function:', data)
       }
 
       return true
@@ -702,8 +728,10 @@ Email: your-email@company.com
 
       // Check if we're running in local development
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      // Allow forcing production mode with URL parameter: ?emailMode=production
+      const forceProduction = new URLSearchParams(window.location.search).get('emailMode') === 'production'
       
-      if (isLocal) {
+      if (isLocal && !forceProduction) {
         // Development mode: simulate email sending
         console.log('🚀 DEVELOPMENT MODE: Simulating invoice email send')
         console.log('📧 Email Request:', emailRequest)
@@ -714,20 +742,44 @@ Email: your-email@company.com
         
         console.log('✅ Invoice email sent successfully (development mode)')
       } else {
-        // Production mode: use the actual edge function
-        const { data, error } = await supabase.functions.invoke('send-email', {
-          body: emailRequest
+        // Production mode: use the remote production edge function
+        console.log('🚀 PRODUCTION MODE: Sending invoice email via Remote Edge Function')
+        console.log('📧 Email Request:', emailRequest)
+        
+        // Get the current session to pass auth token
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (!session?.access_token) {
+          throw new Error('No valid session found. Please log in again.')
+        }
+        
+        console.log('🔑 Using session token for authentication')
+        
+        // Use the existing supabase client but with production URL override
+        const response = await fetch('https://lrvzqxyqrrjusvwazaak.supabase.co/functions/v1/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxydnpxeHlxcnJqdXN2d2F6YWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyODM3NTUsImV4cCI6MjA3Mjg1OTc1NX0.fGa3ojCVJeSxfK7CJjswS4NchPbtRuzuOJIB6tME97o'
+          },
+          body: JSON.stringify(emailRequest)
         })
 
-        if (error) {
-          throw new Error(`Failed to send email: ${error.message}`)
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('❌ HTTP Error:', response.status, errorText)
+          throw new Error(`HTTP ${response.status}: ${errorText}`)
         }
 
-        if (!data?.success) {
+        const data = await response.json()
+        
+        if (!data?.success && !data?.messageId) {
+          console.error('❌ Email sending failed:', data)
           throw new Error(data?.error || 'Failed to send email')
         }
 
-        console.log('Email sent successfully:', data)
+        console.log('✅ Invoice email sent successfully via Remote Edge Function:', data)
       }
 
       return true

@@ -290,25 +290,20 @@ CREATE TRIGGER trigger_update_sent_email_status
     FOR EACH ROW
     EXECUTE FUNCTION update_sent_email_status();
 
--- Create function to update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+-- Function to automatically update updated_at column
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = NOW();
+    NEW.updated_at = now();
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Add updated_at triggers to all relevant tables
-CREATE TRIGGER trigger_sent_emails_updated_at
+-- Add updated_at trigger to sent_emails table
+CREATE TRIGGER update_sent_emails_updated_at
     BEFORE UPDATE ON sent_emails
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER trigger_email_templates_updated_at
-    BEFORE UPDATE ON email_templates
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+    EXECUTE FUNCTION public.handle_updated_at();
 
 -- Create view for email analytics
 CREATE OR REPLACE VIEW email_analytics AS
@@ -342,7 +337,6 @@ GRANT SELECT ON email_analytics TO authenticated;
 
 -- Add comments for documentation
 COMMENT ON TABLE sent_emails IS 'Tracks all emails sent for quotes and invoices with delivery status';
-COMMENT ON TABLE email_templates IS 'Stores reusable email templates for different document types';
 COMMENT ON TABLE email_attachments IS 'Stores attachments for sent emails';
 COMMENT ON TABLE email_events IS 'Tracks email events like opens, clicks, bounces from email service providers';
 COMMENT ON VIEW email_analytics IS 'Provides email performance analytics by user and document type';

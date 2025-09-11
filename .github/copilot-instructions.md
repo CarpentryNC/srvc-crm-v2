@@ -91,6 +91,24 @@ CREATE POLICY "Users can access own data" ON customers
 - **Migrations:** Use numbered format `YYYYMMDDHHMMSS_description.sql`
 - **Edge Functions:** Use service role key to bypass RLS for bulk operations
 
+### Local Database Management (Critical for Development)
+
+**Migration Application (Docker Method - REQUIRED):**
+```bash
+# Standard migration format
+cd "/Users/ncme/VS Code/SRVC Base v 1.5"
+docker exec -i supabase_db_SRVC_Base_v_1.5 psql -U postgres -d postgres < supabase/migrations/YYYYMMDDHHMMSS_description.sql
+
+# Examples:
+docker exec -i supabase_db_SRVC_Base_v_1.5 psql -U postgres -d postgres < supabase/migrations/20250910220000_create_email_tracking_system.sql
+```
+
+**Why Docker Method:**
+- `supabase db push` is unreliable in this project environment
+- Docker exec provides direct PostgreSQL access
+- Ensures migrations are applied correctly to local instance
+- Maintains consistency with production deployment patterns
+
 ### CSV Import Architecture (Reference Implementation)
 ```typescript
 // Multi-step workflow: upload → mapping → preview → processing → results
@@ -113,12 +131,19 @@ npm run dev                    # Start Vite dev server (port 5174)
 
 # Supabase local development
 supabase start                 # Start local Supabase (API: 54321, Studio: 54323)
-supabase db push              # Apply migrations to local DB
 supabase status               # Check service status
 
+# Database migration operations (LOCAL ONLY - use Docker method)
+# NOTE: supabase db push doesn't work reliably in this project
+# Use Docker exec method for local migrations:
+docker exec -i supabase_db_SRVC_Base_v_1.5 psql -U postgres -d postgres < supabase/migrations/MIGRATION_FILE.sql
+
+# Edge Functions deployment
+supabase functions deploy FUNCTION_NAME  # Deploy specific function
+supabase functions deploy send-email     # Deploy email function
+
 # Database operations
-supabase db reset             # Reset local DB with migrations
-supabase functions deploy import-customers  # Deploy Edge Functions
+supabase db reset             # Reset local DB with migrations (if needed)
 
 # Build and deployment
 npm run build                 # TypeScript compilation + Vite build
@@ -156,6 +181,7 @@ VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
 4. **Test auth flows:** Verify protected routes and user state management
 5. **Follow RLS patterns:** All database access must be user-scoped
 6. **Use real-time subscriptions:** For live data updates across components
+7. **Local migration workflow:** Use Docker exec method for applying migrations locally - `supabase db push` is unreliable in this environment
 
 ## File Import Reference
 - **Edge Function deployment:** `supabase functions deploy import-customers`

@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import { useQuotes, type Quote } from '../../hooks/useQuotes'
+import { useNavigate } from 'react-router-dom'
+import { EnvelopeIcon } from '@heroicons/react/24/outline'
 import QuoteStatusHistory from './QuoteStatusHistory'
 import QuoteStatusWorkflow from './QuoteStatusWorkflow'
 import QuoteToJobModal from './QuoteToJobModal'
+import QuoteToInvoiceConverter from '../invoices/QuoteToInvoiceConverter'
+import SendQuoteEmailModal from '../emails/SendQuoteEmailModal'
 
 interface QuotePreviewProps {
   quote: Quote
@@ -12,18 +16,38 @@ interface QuotePreviewProps {
 
 export default function QuotePreview({ quote, onEdit, onStatusChange }: QuotePreviewProps) {
   const { updateQuote } = useQuotes()
+  const navigate = useNavigate()
   const [generatingPDF, setGeneratingPDF] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [optimisticStatus, setOptimisticStatus] = useState<Quote['status'] | null>(null)
   const [showJobConversionModal, setShowJobConversionModal] = useState(false)
+  const [showInvoiceConversionModal, setShowInvoiceConversionModal] = useState(false)
+  const [showEmailModal, setShowEmailModal] = useState(false)
 
   // Handle successful job conversion
   const handleJobConversionSuccess = (jobId: string) => {
     console.log('Job created successfully:', jobId)
     setShowJobConversionModal(false)
     setSuccessMessage('Quote converted to job successfully!')
+    setTimeout(() => setSuccessMessage(null), 5000)
+  }
+
+  // Handle successful invoice conversion
+  const handleInvoiceConversionSuccess = (invoiceId: string) => {
+    console.log('Invoice created successfully:', invoiceId)
+    setShowInvoiceConversionModal(false)
+    setSuccessMessage('Quote converted to invoice successfully!')
+    setTimeout(() => setSuccessMessage(null), 5000)
+    // Navigate to the invoice
+    navigate(`/invoices/${invoiceId}`)
+  }
+
+  // Handle successful email sending
+  const handleEmailSuccess = () => {
+    setShowEmailModal(false)
+    setSuccessMessage('Quote sent via email successfully!')
     setTimeout(() => setSuccessMessage(null), 5000)
   }
 
@@ -188,6 +212,28 @@ export default function QuotePreview({ quote, onEdit, onStatusChange }: QuotePre
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                   </svg>
                   Convert to Job
+                </button>
+              )}
+
+              {/* Send Email Button */}
+              <button
+                onClick={() => setShowEmailModal(true)}
+                className="inline-flex items-center px-4 py-2 border border-green-600 text-sm font-medium rounded-md text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              >
+                <EnvelopeIcon className="h-4 w-4 mr-2" />
+                Send Quote
+              </button>
+
+              {/* Convert to Invoice Button - Only for accepted quotes */}
+              {(optimisticStatus === 'accepted' || quote.status === 'accepted') && (
+                <button
+                  onClick={() => setShowInvoiceConversionModal(true)}
+                  className="inline-flex items-center px-4 py-2 border border-blue-600 text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Create Invoice
                 </button>
               )}
             </div>
@@ -494,6 +540,22 @@ export default function QuotePreview({ quote, onEdit, onStatusChange }: QuotePre
         onClose={() => setShowJobConversionModal(false)}
         quote={quote}
         onConversionSuccess={handleJobConversionSuccess}
+      />
+
+      {/* Quote to Invoice Conversion Modal */}
+      <QuoteToInvoiceConverter
+        isOpen={showInvoiceConversionModal}
+        onClose={() => setShowInvoiceConversionModal(false)}
+        quote={quote}
+        onSuccess={handleInvoiceConversionSuccess}
+      />
+
+      {/* Send Quote Email Modal */}
+      <SendQuoteEmailModal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        quote={quote}
+        onSuccess={handleEmailSuccess}
       />
     </div>
   )

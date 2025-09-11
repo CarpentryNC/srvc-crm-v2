@@ -147,8 +147,9 @@ CREATE INDEX idx_calendar_events_status ON calendar_events(status);
 
 -- Date range queries (most common calendar operation)
 CREATE INDEX idx_calendar_events_date_range ON calendar_events(user_id, start_datetime, end_datetime);
-CREATE INDEX idx_calendar_events_monthly ON calendar_events(user_id, date_trunc('month', start_datetime));
-CREATE INDEX idx_calendar_events_daily ON calendar_events(user_id, date_trunc('day', start_datetime));
+-- Note: Using direct date columns instead of date_trunc for compatibility
+CREATE INDEX idx_calendar_events_user_start ON calendar_events(user_id, start_datetime);
+CREATE INDEX idx_calendar_events_user_end ON calendar_events(user_id, end_datetime);
 
 -- Recurring events
 CREATE INDEX idx_calendar_events_recurring ON calendar_events(is_recurring, recurrence_pattern) WHERE is_recurring = true;

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useInvoices } from '../../hooks/useInvoices';
+import { useInvoices, type Invoice, type InvoiceLineItem, type InvoicePayment } from '../../hooks/useInvoices';
 import { useCustomers } from '../../hooks/useCustomers';
-import type { Invoice, InvoiceLineItem, InvoicePayment } from '../../types/database';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
+import { EnvelopeIcon } from '@heroicons/react/24/outline';
 import PaymentModal from './PaymentModal';
+import SendInvoiceEmailModal from '../emails/SendInvoiceEmailModal';
 
 interface InvoiceViewProps {
   invoiceId?: string;
@@ -26,6 +27,7 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
   const [payments, setPayments] = useState<InvoicePayment[]>([]);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   // Get customer data
   const customer = customers.find(c => c.id === invoice?.customer_id);
@@ -69,10 +71,10 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
   }, [invoiceId, getInvoiceLineItems, getInvoicePayments]);
 
   // Calculate totals and balances
-  const subtotal = invoice?.subtotal || 0;
-  const taxAmount = invoice?.tax_amount || 0;
-  const totalAmount = invoice?.total_amount || 0;
-  const paidAmount = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const subtotal = invoice?.subtotal || (invoice?.subtotal_cents ? invoice.subtotal_cents / 100 : 0);
+  const taxAmount = invoice?.tax_amount || (invoice?.tax_cents ? invoice.tax_cents / 100 : 0);
+  const totalAmount = invoice?.total_amount || (invoice?.total_cents ? invoice.total_cents / 100 : 0);
+  const paidAmount = payments.reduce((sum: number, payment: InvoicePayment) => sum + (payment.amount || (payment.amount_cents / 100)), 0);
   const balanceDue = totalAmount - paidAmount;
 
   // Status badge styling
@@ -99,8 +101,8 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
     if (!invoice) return;
 
     try {
-      await updateInvoiceStatus(invoice.id, newStatus as any);
-      setInvoice(prev => prev ? { ...prev, status: newStatus as any } : null);
+      await updateInvoiceStatus(invoice.id, newStatus as Invoice['status']);
+      setInvoice((prev: Invoice | null) => prev ? { ...prev, status: newStatus as Invoice['status'] } : null);
       toast.success(`Invoice marked as ${newStatus}`);
     } catch (error) {
       console.error('Error updating status:', error);
@@ -153,13 +155,19 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
       const paymentsData = await getInvoicePayments(invoiceId);
       setPayments(paymentsData);
       
-      const newPaidAmount = paymentsData.reduce((sum, payment) => sum + payment.amount, 0);
+      const newPaidAmount = paymentsData.reduce((sum, payment) => sum + (payment.amount || (payment.amount_cents / 100)), 0);
       if (newPaidAmount >= totalAmount && invoice?.status !== 'paid') {
         await handleStatusUpdate('paid');
       }
     } catch (error) {
       console.error('Error reloading payment data:', error);
     }
+  };
+
+  // Handle successful email sending
+  const handleEmailSuccess = () => {
+    setShowEmailModal(false);
+    toast.success('Invoice sent via email successfully!');
   };
 
   if (loading) {
@@ -238,6 +246,14 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
               </>
             )}
             
+            <button
+              onClick={() => setShowEmailModal(true)}
+              className="px-3 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:ring-2 focus:ring-green-500 flex items-center"
+            >
+              <EnvelopeIcon className="w-4 h-4 mr-2" />
+              Send Invoice
+            </button>
+
             <button
               onClick={handleGeneratePDF}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-blue-500"
@@ -383,10 +399,10 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
                       {item.quantity}
                     </td>
                     <td className="text-right py-3 text-gray-900 dark:text-white">
-                      ${item.unit_price.toFixed(2)}
+                      ${(item.unit_price || (item.unit_price_cents / 100)).toFixed(2)}
                     </td>
                     <td className="text-right py-3 text-gray-900 dark:text-white font-medium">
-                      ${item.total_amount.toFixed(2)}
+                      ${(item.total_amount || (item.total_cents / 100)).toFixed(2)}
                     </td>
                   </tr>
                 ))}
@@ -528,6 +544,21 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
           isOpen={isPaymentModalOpen}
           onClose={() => setIsPaymentModalOpen(false)}
           onPaymentRecorded={handlePaymentRecorded}
+        />
+      )}
+
+      {/* Send Invoice Email Modal */}
+      {invoice && customer && (
+        <SendInvoiceEmailModal
+          isOpen={showEmailModal}
+          onClose={() => setShowEmailModal(false)}
+          invoice={{
+            ...invoice,
+            customer,
+            line_items: lineItems as any,
+            payments: payments as any
+          }}
+          onSuccess={handleEmailSuccess}
         />
       )}
     </div>

@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { Dialog } from '@headlessui/react'
 import { format, addDays } from 'date-fns'
 import { 
   XMarkIcon,
   DocumentTextIcon,
-  CurrencyDollarIcon,
   CalendarIcon,
   CheckIcon
 } from '@heroicons/react/24/outline'
@@ -73,8 +71,8 @@ export default function QuoteToInvoiceConverter({
   }
 
   // Calculate totals from quote line items
-  const lineItemsPreview = quote.line_items || []
-  const subtotal = lineItemsPreview.reduce((sum, item) => sum + item.total_amount, 0)
+  const lineItemsPreview = quote.quote_line_items || []
+  const subtotal = lineItemsPreview.reduce((sum: number, item: any) => sum + item.total_amount, 0)
   const taxAmount = subtotal * 0.0875 // 8.75% tax rate
   const total = subtotal + taxAmount
 
@@ -84,21 +82,23 @@ export default function QuoteToInvoiceConverter({
       || 'Unknown Customer'
     : 'Unknown Customer'
 
+  if (!isOpen) return null
+
   return (
-    <Dialog 
-      open={isOpen} 
-      onClose={onClose}
-      className="fixed inset-0 z-50 overflow-y-auto"
-    >
+    <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <Dialog.Overlay className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+        {/* Background overlay */}
+        <div 
+          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          onClick={onClose}
+        />
 
         {/* This element is to trick the browser into centering the modal contents. */}
         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">
           &#8203;
         </span>
 
-        <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full sm:p-6">
+        <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full sm:p-6 relative z-10">
           <div className="absolute top-0 right-0 pt-4 pr-4">
             <button
               type="button"
@@ -115,9 +115,9 @@ export default function QuoteToInvoiceConverter({
               <DocumentTextIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
             <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-              <Dialog.Title as="h3" className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
                 Convert Quote to Invoice
-              </Dialog.Title>
+              </h3>
               <div className="mt-2">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Create an invoice from quote <span className="font-medium">{quote.quote_number}</span> for <span className="font-medium">{customerName}</span>.
@@ -155,7 +155,7 @@ export default function QuoteToInvoiceConverter({
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Line Items to Transfer</h4>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {lineItemsPreview.map((item, index) => (
+                  {lineItemsPreview.map((item: any, index: number) => (
                     <div key={index} className="flex justify-between items-center text-sm">
                       <div className="flex-1">
                         <div className="font-medium text-gray-900 dark:text-white">
@@ -306,6 +306,6 @@ export default function QuoteToInvoiceConverter({
           </form>
         </div>
       </div>
-    </Dialog>
+    </div>
   )
 }

@@ -7,12 +7,13 @@ import {
   UserIcon,
   MapPinIcon,
   PlusIcon,
-  FilterIcon,
-  SearchIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
   ViewColumnsIcon
 } from '@heroicons/react/24/outline'
-import { format, isToday, isSameMonth, isSameDay, startOfWeek, endOfWeek, eachDayOfInterval, addDays, getDay } from 'date-fns'
-import { useCalendar, CalendarEvent, CalendarFilters } from '../../hooks/useCalendar'
+import { format, isToday, isSameMonth, startOfWeek, endOfWeek, eachDayOfInterval, addDays } from 'date-fns'
+import { useCalendar } from '../../hooks/useCalendar'
+import type { CalendarEvent, CalendarFilters } from '../../hooks/useCalendar'
 import { useCustomers } from '../../hooks/useCustomers'
 import EventForm from './EventForm'
 
@@ -170,7 +171,7 @@ function CalendarFiltersPanel({ filters, onFiltersChange }: CalendarFiltersProps
           onClick={() => setShowFilters(!showFilters)}
           className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
         >
-          <FilterIcon className="h-4 w-4" />
+          <FunnelIcon className="h-4 w-4" />
           Filters
           {(filters.event_types?.length || filters.status?.length || filters.priority?.length || filters.customer_id) && (
             <span className="ml-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-full">
@@ -181,7 +182,7 @@ function CalendarFiltersPanel({ filters, onFiltersChange }: CalendarFiltersProps
 
         {/* Search */}
         <div className="relative flex-1 max-w-md">
-          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
             placeholder="Search events..."

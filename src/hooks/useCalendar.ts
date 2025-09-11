@@ -283,51 +283,61 @@ export function useCalendar() {
       if (!forceRefresh) setLoading(true)
       setError(null)
 
-      // Build query with filters
-      let query = supabase
-        .from('calendar_events')
+      // For now, fetch from jobs table since calendar_events doesn't exist
+      // Convert jobs to calendar events format
+      const { data: jobsData, error: jobsError } = await (supabase as any)
+        .from('jobs')
         .select(`
           *,
-          customers!calendar_events_customer_id_fkey(name),
-          assigned_user:auth.users!calendar_events_assigned_to_fkey(id, email),
-          event_attendees(*),
-          event_files(*)
+          customers!jobs_customer_id_fkey(
+            id,
+            first_name,
+            last_name,
+            company_name
+          )
         `)
-        .gte('start_datetime', currentView.start_date.toISOString())
-        .lte('start_datetime', currentView.end_date.toISOString())
-        .neq('status', 'cancelled')
+        .eq('user_id', user.id)
+        .not('scheduled_date', 'is', null)
+        .gte('scheduled_date', currentView.start_date.toISOString().split('T')[0])
+        .lte('scheduled_date', currentView.end_date.toISOString().split('T')[0])
+        .order('scheduled_date', { ascending: true })
 
-      // Apply filters
-      if (filters.event_types && filters.event_types.length > 0) {
-        query = query.in('event_type', filters.event_types)
-      }
-      if (filters.status && filters.status.length > 0) {
-        query = query.in('status', filters.status)
-      }
-      if (filters.priority && filters.priority.length > 0) {
-        query = query.in('priority', filters.priority)
-      }
-      if (filters.customer_id) {
-        query = query.eq('customer_id', filters.customer_id)
-      }
-      if (filters.assigned_to) {
-        query = query.eq('assigned_to', filters.assigned_to)
-      }
-      if (!filters.show_private) {
-        query = query.eq('is_private', false)
-      }
+      if (jobsError) throw jobsError
 
-      const { data, error } = await query.order('start_datetime', { ascending: true })
-
-      if (error) throw error
-
-      // Transform data and add computed fields
-      const transformedEvents: CalendarEvent[] = (data || []).map(event => ({
-        ...event,
-        customer_name: event.customers?.name,
-        assigned_to_name: event.assigned_user?.email,
-        attendees: event.event_attendees || [],
-        files: event.event_files || []
+      // Transform jobs data to calendar events format
+      const transformedEvents: CalendarEvent[] = (jobsData || []).map((job: any) => ({
+        id: job.id,
+        user_id: job.user_id,
+        title: job.title,
+        description: job.description,
+        location: '', // Jobs don't have location in current schema
+        start_datetime: job.scheduled_date + 'T09:00:00.000Z', // Default to 9 AM
+        end_datetime: job.scheduled_date + 'T17:00:00.000Z', // Default to 5 PM
+        all_day: false,
+        timezone: 'America/New_York',
+        event_type: 'job' as const,
+        source_type: 'job' as const,
+        source_id: job.id,
+        status: job.status === 'pending' ? 'scheduled' as const : 
+                job.status === 'in_progress' ? 'in_progress' as const :
+                job.status === 'completed' ? 'completed' as const : 'cancelled' as const,
+        priority: 'medium' as const,
+        color: '#10B981', // Green for jobs
+        is_recurring: false,
+        recurrence_pattern: undefined,
+        customer_id: job.customer_id,
+        assigned_to: undefined,
+        reminder_minutes: [15, 60],
+        is_private: false,
+        notes: job.notes,
+        created_at: job.created_at,
+        updated_at: job.updated_at,
+        customer_name: job.customers ? 
+          (job.customers.company_name || `${job.customers.first_name} ${job.customers.last_name}`) : 
+          undefined,
+        assigned_to_name: undefined,
+        attendees: [],
+        files: []
       }))
 
       // Apply search filter on client side for performance
@@ -337,8 +347,7 @@ export function useCalendar() {
         filteredEvents = transformedEvents.filter(event =>
           event.title.toLowerCase().includes(searchLower) ||
           event.description?.toLowerCase().includes(searchLower) ||
-          event.customer_name?.toLowerCase().includes(searchLower) ||
-          event.location?.toLowerCase().includes(searchLower)
+          event.customer_name?.toLowerCase().includes(searchLower)
         )
       }
 
@@ -359,30 +368,61 @@ export function useCalendar() {
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const { data, error } = await supabase
-        .from('calendar_events')
-        .insert([{
-          ...eventData,
-          user_id: user.id,
-          status: 'scheduled',
-          color: eventData.color || getDefaultColorForEventType(eventData.event_type),
-          timezone: eventData.timezone || 'America/New_York',
-          reminder_minutes: eventData.reminder_minutes || [15, 60],
-          created_by: user.id
-        }])
+      // For now, create as a job since calendar_events table doesn't exist
+      const jobData = {
+        user_id: user.id,
+        customer_id: eventData.customer_id,
+        title: eventData.title,
+        description: eventData.description,
+        scheduled_date: eventData.start_datetime.split('T')[0], // Extract date
+        status: 'pending' as const,
+        notes: eventData.notes
+      }
+
+      const { data, error } = await (supabase as any)
+        .from('jobs')
+        .insert([jobData])
         .select(`
           *,
-          customers!calendar_events_customer_id_fkey(name),
-          assigned_user:auth.users!calendar_events_assigned_to_fkey(id, email)
+          customers!jobs_customer_id_fkey(
+            id,
+            first_name,
+            last_name,
+            company_name
+          )
         `)
         .single()
 
       if (error) throw error
 
+      // Transform back to CalendarEvent format
       const newEvent: CalendarEvent = {
-        ...data,
-        customer_name: data.customers?.name,
-        assigned_to_name: data.assigned_user?.email,
+        id: (data as any).id,
+        user_id: (data as any).user_id,
+        title: (data as any).title,
+        description: (data as any).description,
+        location: '',
+        start_datetime: eventData.start_datetime,
+        end_datetime: eventData.end_datetime || eventData.start_datetime,
+        all_day: eventData.all_day || false,
+        timezone: eventData.timezone || 'America/New_York',
+        event_type: 'job',
+        source_type: 'job',
+        source_id: (data as any).id,
+        status: 'scheduled',
+        priority: eventData.priority || 'medium',
+        color: eventData.color || '#10B981',
+        is_recurring: false,
+        customer_id: (data as any).customer_id,
+        assigned_to: undefined,
+        reminder_minutes: [15, 60],
+        is_private: false,
+        notes: (data as any).notes,
+        created_at: (data as any).created_at,
+        updated_at: (data as any).updated_at,
+        customer_name: (data as any).customers ? 
+          ((data as any).customers.company_name || `${(data as any).customers.first_name} ${(data as any).customers.last_name}`) : 
+          undefined,
         attendees: [],
         files: []
       }
@@ -403,26 +443,66 @@ export function useCalendar() {
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const { data, error } = await supabase
-        .from('calendar_events')
-        .update({
-          ...updates,
-          updated_by: user.id
-        })
+      // Update the job record
+      const jobUpdates: any = {
+        title: updates.title,
+        description: updates.description,
+        notes: updates.notes,
+        updated_at: new Date().toISOString()
+      }
+
+      if (updates.start_datetime) {
+        jobUpdates.scheduled_date = updates.start_datetime.split('T')[0]
+      }
+
+      const { data, error } = await (supabase as any)
+        .from('jobs')
+        .update(jobUpdates)
         .eq('id', id)
+        .eq('user_id', user.id)
         .select(`
           *,
-          customers!calendar_events_customer_id_fkey(name),
-          assigned_user:auth.users!calendar_events_assigned_to_fkey(id, email)
+          customers!jobs_customer_id_fkey(
+            id,
+            first_name,
+            last_name,
+            company_name
+          )
         `)
         .single()
 
       if (error) throw error
 
+      // Transform back to CalendarEvent format
       const updatedEvent: CalendarEvent = {
-        ...data,
-        customer_name: data.customers?.name,
-        assigned_to_name: data.assigned_user?.email,
+        id: (data as any).id,
+        user_id: (data as any).user_id,
+        title: (data as any).title,
+        description: (data as any).description,
+        location: '',
+        start_datetime: updates.start_datetime || `${(data as any).scheduled_date}T09:00:00.000Z`,
+        end_datetime: updates.end_datetime || `${(data as any).scheduled_date}T17:00:00.000Z`,
+        all_day: updates.all_day || false,
+        timezone: updates.timezone || 'America/New_York',
+        event_type: 'job',
+        source_type: 'job',
+        source_id: (data as any).id,
+        status: (data as any).status === 'pending' ? 'scheduled' : 
+                (data as any).status === 'in_progress' ? 'in_progress' :
+                (data as any).status === 'completed' ? 'completed' : 'cancelled',
+        priority: updates.priority || 'medium',
+        color: updates.color || '#10B981',
+        is_recurring: false,
+        customer_id: (data as any).customer_id,
+        assigned_to: undefined,
+        reminder_minutes: [15, 60],
+        is_private: false,
+        notes: (data as any).notes,
+        created_at: (data as any).created_at,
+        updated_at: (data as any).updated_at,
+        customer_name: (data as any).customers ? 
+          ((data as any).customers.company_name || `${(data as any).customers.first_name} ${(data as any).customers.last_name}`) : 
+          undefined,
         attendees: [],
         files: []
       }
@@ -443,10 +523,11 @@ export function useCalendar() {
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const { error } = await supabase
-        .from('calendar_events')
+      const { error } = await (supabase as any)
+        .from('jobs')
         .delete()
         .eq('id', id)
+        .eq('user_id', user.id)
 
       if (error) throw error
 
@@ -554,11 +635,11 @@ export function useCalendar() {
     if (!user) return
 
     const subscription = supabase
-      .channel('calendar_events')
+      .channel('jobs_calendar')
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
-        table: 'calendar_events',
+        table: 'jobs',
         filter: `user_id=eq.${user.id}`
       }, () => {
         fetchEvents(true) // Refresh events on changes
@@ -611,16 +692,3 @@ export function useCalendar() {
 // =============================================
 // Helper Functions
 // =============================================
-
-function getDefaultColorForEventType(eventType: CalendarEvent['event_type']): string {
-  const colors = {
-    job: '#10B981',      // Green
-    assessment: '#3B82F6', // Blue  
-    meeting: '#8B5CF6',    // Purple
-    reminder: '#F59E0B',   // Amber
-    follow_up: '#EF4444',  // Red
-    quote_expiry: '#F97316', // Orange
-    custom: '#6B7280'      // Gray
-  }
-  return colors[eventType] || colors.custom
-}

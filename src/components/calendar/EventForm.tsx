@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { X, Calendar, Clock, User, MapPin, FileText } from 'lucide-react'
-import { CalendarEventInput, CalendarEvent } from '../../hooks/useCalendar'
+import type { CalendarEventInput, CalendarEvent } from '../../hooks/useCalendar'
 import { useCustomers } from '../../hooks/useCustomers'
 
 interface EventFormProps {

@@ -19,7 +19,7 @@ interface EmailRequest {
   documentId: string
 }
 
-interface SendGridResponse {
+interface EmailResponse {
   success: boolean
   messageId?: string
   error?: string
@@ -27,10 +27,10 @@ interface SendGridResponse {
 
 // SendGrid API configuration
 const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY')
-const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'noreply@srvccrm.com'
+const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'samir.emailme@gmail.com'
 const FROM_NAME = Deno.env.get('FROM_NAME') || 'SRVC CRM'
 
-async function sendWithSendGrid(emailData: EmailRequest): Promise<SendGridResponse> {
+async function sendWithSendGrid(emailData: EmailRequest): Promise<EmailResponse> {
   if (!SENDGRID_API_KEY) {
     throw new Error('SendGrid API key not configured')
   }
@@ -86,62 +86,6 @@ async function sendWithSendGrid(emailData: EmailRequest): Promise<SendGridRespon
     }
   } catch (error) {
     console.error('SendGrid request failed:', error)
-    return {
-      success: false,
-      error: `Network error: ${error.message}`
-    }
-  }
-}
-
-// Alternative: AWS SES implementation
-async function sendWithSES(emailData: EmailRequest): Promise<SendGridResponse> {
-  // This would require AWS SES configuration
-  // For now, we'll focus on SendGrid
-  throw new Error('AWS SES not implemented yet')
-}
-
-// Fallback: Resend.com implementation
-async function sendWithResend(emailData: EmailRequest): Promise<SendGridResponse> {
-  const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
-  
-  if (!RESEND_API_KEY) {
-    throw new Error('Resend API key not configured')
-  }
-
-  const resendData = {
-    from: `${FROM_NAME} <${FROM_EMAIL}>`,
-    to: emailData.to.map(recipient => recipient.email),
-    subject: emailData.subject,
-    html: emailData.htmlContent,
-    text: emailData.textContent
-  }
-
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(resendData),
-    })
-
-    const result = await response.json()
-
-    if (response.ok) {
-      return {
-        success: true,
-        messageId: result.id
-      }
-    } else {
-      console.error('Resend API error:', result)
-      return {
-        success: false,
-        error: `Resend API error: ${result.message || 'Unknown error'}`
-      }
-    }
-  } catch (error) {
-    console.error('Resend request failed:', error)
     return {
       success: false,
       error: `Network error: ${error.message}`
@@ -221,24 +165,9 @@ serve(async (req) => {
       )
     }
 
-    // Determine email provider to use (priority: SendGrid > Resend > SES)
-    let emailResult: SendGridResponse
-    
-    if (SENDGRID_API_KEY) {
-      console.log('Using SendGrid to send email')
-      emailResult = await sendWithSendGrid(emailRequest)
-    } else if (Deno.env.get('RESEND_API_KEY')) {
-      console.log('Using Resend to send email')
-      emailResult = await sendWithResend(emailRequest)
-    } else {
-      return new Response(
-        JSON.stringify({ error: 'No email service configured. Please set SENDGRID_API_KEY or RESEND_API_KEY.' }),
-        { 
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
-    }
+    // Send email with SendGrid
+    console.log('Sending email with SendGrid')
+    const emailResult: EmailResponse = await sendWithSendGrid(emailRequest)
 
     // Track email sending in database
     const emailTrackingPromises = emailRequest.to.map(async (recipient) => {
@@ -255,7 +184,7 @@ serve(async (req) => {
         email_service_id: emailResult.messageId || null,
         error_message: emailResult.success ? null : emailResult.error,
         sent_at: emailResult.success ? new Date().toISOString() : null,
-        email_provider: SENDGRID_API_KEY ? 'sendgrid' : 'resend'
+        email_provider: 'sendgrid'
       }
 
       const { error: trackingError } = await supabaseClient

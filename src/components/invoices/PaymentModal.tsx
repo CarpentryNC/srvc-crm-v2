@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Invoice } from '../../types/database';
-import { useInvoices } from '../../hooks/useInvoices';
+import { useInvoices, type Invoice } from '../../hooks/useInvoices';
 import { toast } from 'react-hot-toast';
 
 interface PaymentModalProps {

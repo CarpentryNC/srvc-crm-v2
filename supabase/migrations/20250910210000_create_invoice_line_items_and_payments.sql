@@ -213,8 +213,8 @@ SELECT
     WHEN get_invoice_balance(i.id) <= 0 THEN true
     ELSE false
   END as is_fully_paid,
-  c.name as customer_name,
-  c.company as customer_company,
+  CONCAT(c.first_name, ' ', c.last_name) as customer_name,
+  c.company_name as customer_company,
   c.email as customer_email
 FROM invoices i
 LEFT JOIN customers c ON i.customer_id = c.id;
