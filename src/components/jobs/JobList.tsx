@@ -307,8 +307,8 @@ export function JobList({ onJobClick }: JobListProps) {
                     {getCustomerDisplayName(job)}
                   </p>
                 </div>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
-                  {getStatusIcon(job.status)}
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(job.status as JobStatus)}`}>
+                  {getStatusIcon(job.status as JobStatus)}
                   <span className="ml-1 capitalize">{job.status.replace('_', ' ')}</span>
                 </span>
               </div>
@@ -426,8 +426,8 @@ export function JobList({ onJobClick }: JobListProps) {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
-                        {getStatusIcon(job.status)}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(job.status as JobStatus)}`}>
+                        {getStatusIcon(job.status as JobStatus)}
                         <span className="ml-1 capitalize">{job.status.replace('_', ' ')}</span>
                       </span>
                     </td>

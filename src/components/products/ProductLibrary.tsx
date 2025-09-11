@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus, Search, Filter, Edit, Trash2, Copy, Eye, EyeOff } from 'lucide-react'
 import { useProducts } from '../../hooks/useProducts'
 import { PRODUCT_CATEGORIES } from '../../types/product'
@@ -190,7 +190,7 @@ export default function ProductLibrary({ onProductSelect, selectionMode = false 
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
                     {product.name}
                   </h3>
-                  <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${getCategoryColor(product.category)}`}>
+                  <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${getCategoryColor((product.category || 'materials') as ProductCategory)}`}>
                     {PRODUCT_CATEGORIES.find(c => c.value === product.category)?.label}
                   </span>
                 </div>
@@ -242,7 +242,7 @@ export default function ProductLibrary({ onProductSelect, selectionMode = false 
               {/* Price and Unit */}
               <div className="flex items-center justify-between">
                 <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {formatPrice(product.default_unit_price)}
+                  {formatPrice(product.default_unit_price || 0)}
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   per {product.unit}

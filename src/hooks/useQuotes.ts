@@ -161,7 +161,7 @@ export function useQuotes() {
           .order('updated_at', { ascending: false })
 
         if (fetchError) throw fetchError
-        setQuotes(data || [])
+        setQuotes((data || []) as Quote[])
       } catch (err) {
         console.error('Error fetching quotes:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch quotes')
@@ -391,7 +391,7 @@ export function useQuotes() {
         .single()
 
       if (fetchError) throw fetchError
-      return data
+      return data as Quote
     } catch (err) {
       console.error('Error fetching quote:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch quote')

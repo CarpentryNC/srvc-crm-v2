@@ -87,7 +87,7 @@ export function useCustomers() {
         throw fetchError;
       }
 
-      setCustomers(data || []);
+      setCustomers((data || []) as Customer[]);
     } catch (err) {
       console.error('Error fetching customers:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch customers');
@@ -237,7 +237,7 @@ export function useCustomers() {
 
       if (fetchError) throw fetchError;
       
-      return data;
+      return data as Customer;
     } catch (err) {
       console.error('Error fetching customer:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch customer');

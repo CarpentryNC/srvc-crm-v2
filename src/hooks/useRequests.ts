@@ -4,17 +4,17 @@ import { useAuth } from './useAuth'
 
 export interface Request {
   id: string
-  customer_id: string
-  user_id: string
+  customer_id: string | null
+  user_id: string | null
   title: string
-  description?: string
-  priority: 'low' | 'medium' | 'high' | 'urgent'
-  status: 'received' | 'assessed' | 'quoted' | 'approved' | 'converted'
+  description: string | null
+  priority: ('low' | 'medium' | 'high' | 'urgent') | null
+  status: ('received' | 'assessed' | 'quoted' | 'approved' | 'converted') | null
   requires_assessment: boolean
-  location_notes?: string
-  preferred_contact_method?: string
-  created_at: string
-  updated_at: string
+  location_notes: string | null
+  preferred_contact_method: string | null
+  created_at: string | null
+  updated_at: string | null
   // Relations
   customer?: {
     id: string
@@ -104,7 +104,7 @@ export function useRequests() {
         throw fetchError
       }
 
-      setRequests(data || [])
+      setRequests((data || []) as Request[])
     } catch (err) {
       console.error('Error fetching requests:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch requests')
@@ -250,7 +250,7 @@ export function useRequests() {
         throw fetchError
       }
 
-      return data
+      return data as Request
     } catch (err) {
       console.error('Error fetching request:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch request')

@@ -34,10 +34,10 @@ export default function ProductForm({ isOpen, onClose, productId, initialData }:
           setFormData({
             name: product.name,
             description: product.description || '',
-            category: product.category,
-            default_unit_price: product.default_unit_price,
-            unit: product.unit,
-            is_active: product.is_active
+            category: (product.category || 'materials') as ProductCategory,
+            default_unit_price: product.default_unit_price || 0,
+            unit: product.unit || 'each',
+            is_active: product.is_active ?? true
           })
         }
       }

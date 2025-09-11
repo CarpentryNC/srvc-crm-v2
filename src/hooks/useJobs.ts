@@ -84,7 +84,7 @@ export function useJobs() {
         throw fetchError;
       }
 
-      setJobs(data || []);
+      setJobs((data || []) as JobWithCustomer[]);
     } catch (err) {
       console.error('Error fetching jobs:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch jobs');
@@ -139,7 +139,7 @@ export function useJobs() {
 
   // Helper function to create calendar event for job
   const createJobCalendarEvent = useCallback(async (job: Job, customer?: any) => {
-    if (!job.scheduled_date) return;
+    if (!job.scheduled_date || !user) return;
 
     try {
       // Calculate end time based on estimated hours
@@ -151,7 +151,7 @@ export function useJobs() {
       const { error: calendarError } = await supabase
         .from('calendar_events')
         .insert({
-          user_id: user?.id,
+          user_id: user.id,
           title: job.title,
           description: `Job: ${job.description || 'Scheduled job work'}`,
           start_datetime: job.scheduled_date,
@@ -161,7 +161,7 @@ export function useJobs() {
           source_id: job.id,
           customer_id: job.customer_id,
           status: 'scheduled',
-          priority: job.priority === 'urgent' ? 'urgent' : 'medium',
+          priority: 'medium',
           color: '#10B981', // Green for jobs
           reminder_minutes: [15, 60], // 15 min and 1 hour reminders
           notes: `Job ID: ${job.id}${customer ? ` - Customer: ${customer.first_name} ${customer.last_name}` : ''}`
@@ -426,7 +426,7 @@ export function useJobs() {
 
       if (fetchError) throw fetchError;
       
-      return data;
+      return data as JobWithCustomer;
     } catch (err) {
       console.error('Error fetching job:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch job');
@@ -458,7 +458,7 @@ export function useJobs() {
 
       if (fetchError) throw fetchError;
       
-      return data || [];
+      return (data || []) as JobWithCustomer[];
     } catch (err) {
       console.error('Error fetching customer jobs:', err);
       return [];

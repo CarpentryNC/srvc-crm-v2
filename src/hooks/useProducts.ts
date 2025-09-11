@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
-import type { Product, ProductInsert, ProductUpdate, ProductFilters, ProductFormData } from '../types/product'
+import type { Product, ProductInsert, ProductUpdate, ProductFilters, ProductFormData, ProductCategory } from '../types/product'
 
 export function useProducts() {
   const { user } = useAuth()
@@ -173,10 +173,10 @@ export function useProducts() {
     const duplicateData: ProductFormData = {
       name: `${product.name} (Copy)`,
       description: product.description || '',
-      category: product.category,
-      default_unit_price: product.default_unit_price,
-      unit: product.unit,
-      is_active: product.is_active
+      category: (product.category || 'materials') as ProductCategory,
+      default_unit_price: product.default_unit_price || 0,
+      unit: product.unit || 'each',
+      is_active: product.is_active ?? true
     }
 
     return createProduct(duplicateData)

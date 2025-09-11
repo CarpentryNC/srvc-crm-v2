@@ -255,8 +255,8 @@ export function JobDetail() {
               <BriefcaseIcon className="h-5 w-5 mr-2" />
               Job Information
             </h2>
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(job.status)}`}>
-              {getStatusIcon(job.status)}
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(job.status as JobStatus)}`}>
+              {getStatusIcon(job.status as JobStatus)}
               <span className="ml-2 capitalize">{job.status.replace('_', ' ')}</span>
             </span>
           </div>
@@ -264,13 +264,13 @@ export function JobDetail() {
 
         <div className="p-6 space-y-6">
           {/* Status Update Buttons */}
-          {getAvailableStatusTransitions(job.status).length > 0 && (
+          {getAvailableStatusTransitions(job.status as JobStatus).length > 0 && (
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
               <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
                 Update Status
               </h3>
               <div className="flex flex-wrap gap-2">
-                {getAvailableStatusTransitions(job.status).map((status) => (
+                {getAvailableStatusTransitions(job.status as JobStatus).map((status) => (
                   <button
                     key={status}
                     onClick={() => handleStatusUpdate(status)}

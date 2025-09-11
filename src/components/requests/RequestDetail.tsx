@@ -63,7 +63,7 @@ export default function RequestDetail() {
           throw fetchError
         }
 
-        setRequest(data)
+        setRequest(data as Request)
       } catch (err) {
         console.error('Error fetching request:', err)
       } finally {
@@ -78,7 +78,7 @@ export default function RequestDetail() {
 
   // Update request status
   const handleStatusUpdate = async (newStatus: Request['status']) => {
-    if (!request) return
+    if (!request || !newStatus) return
 
     setIsUpdating(true)
     try {
@@ -190,11 +190,11 @@ export default function RequestDetail() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <span className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium border ${getStatusColor(request.status)}`}>
-                {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+              <span className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium border ${getStatusColor(request.status || 'received')}`}>
+                {request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : 'Received'}
               </span>
-              <span className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium border ${getPriorityColor(request.priority)}`}>
-                {request.priority.charAt(0).toUpperCase() + request.priority.slice(1)} Priority
+              <span className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium border ${getPriorityColor(request.priority || 'medium')}`}>
+                {request.priority ? request.priority.charAt(0).toUpperCase() + request.priority.slice(1) : 'Medium'} Priority
               </span>
               {request.requires_assessment && (
                 <span className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200">
@@ -216,7 +216,7 @@ export default function RequestDetail() {
             {/* Status Update Dropdown */}
             <div className="relative">
               <select
-                value={request.status}
+                value={request.status || 'received'}
                 onChange={(e) => handleStatusUpdate(e.target.value as Request['status'])}
                 disabled={isUpdating}
                 className="bg-gray-50 border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -298,12 +298,12 @@ export default function RequestDetail() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Created</label>
-                <p className="text-gray-900">{new Date(request.created_at).toLocaleString()}</p>
+                <p className="text-gray-900">{request.created_at ? new Date(request.created_at).toLocaleString() : 'Unknown'}</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Last Updated</label>
-                <p className="text-gray-900">{new Date(request.updated_at).toLocaleString()}</p>
+                <p className="text-gray-900">{request.updated_at ? new Date(request.updated_at).toLocaleString() : 'Unknown'}</p>
               </div>
             </div>
           </div>

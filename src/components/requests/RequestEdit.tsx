@@ -34,11 +34,11 @@ export default function RequestEdit() {
         if (requestData) {
           setRequest(requestData)
           setFormData({
-            customer_id: requestData.customer_id,
+            customer_id: requestData.customer_id || '',
             title: requestData.title,
             description: requestData.description || '',
-            priority: requestData.priority,
-            status: requestData.status,
+            priority: requestData.priority || 'medium',
+            status: requestData.status || 'received',
             requires_assessment: requestData.requires_assessment,
             location_notes: requestData.location_notes || '',
             preferred_contact_method: requestData.preferred_contact_method || '',

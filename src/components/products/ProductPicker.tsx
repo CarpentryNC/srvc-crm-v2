@@ -173,8 +173,8 @@ function ProductSelectionPanel({
 
   if (!product) return null
 
-  const finalPrice = useCustomPrice && customPrice !== null ? customPrice : product.default_unit_price
-  const totalAmount = finalPrice * quantity
+  const finalPrice = useCustomPrice && customPrice !== null ? customPrice : (product.default_unit_price || 0)
+  const totalAmount = (finalPrice || 0) * quantity
 
   return (
     <div className="space-y-4">
@@ -191,7 +191,7 @@ function ProductSelectionPanel({
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-500 dark:text-gray-400">Default Price:</span>
           <span className="font-medium text-gray-900 dark:text-white">
-            ${product.default_unit_price.toFixed(2)} / {product.unit}
+            ${(product.default_unit_price || 0).toFixed(2)} / {product.unit}
           </span>
         </div>
       </div>
@@ -257,7 +257,7 @@ function ProductSelectionPanel({
           </span>
         </div>
         <div className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-          {quantity} × ${finalPrice.toFixed(2)} per {product.unit}
+          {quantity} × ${(finalPrice || 0).toFixed(2)} per {product.unit}
         </div>
       </div>
 

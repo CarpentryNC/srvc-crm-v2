@@ -210,11 +210,11 @@ function RequestCard({ request }: RequestCardProps) {
 
       {/* Status and Priority */}
       <div className="flex items-center gap-2 mb-4">
-        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getStatusColor(request.status)}`}>
-          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getStatusColor(request.status || 'received')}`}>
+          {request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : 'Received'}
         </span>
-        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getPriorityColor(request.priority)}`}>
-          {request.priority.charAt(0).toUpperCase() + request.priority.slice(1)} Priority
+        <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${getPriorityColor(request.priority || 'medium')}`}>
+          {request.priority ? request.priority.charAt(0).toUpperCase() + request.priority.slice(1) : 'Medium'} Priority
         </span>
         {request.requires_assessment && (
           <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
@@ -226,7 +226,7 @@ function RequestCard({ request }: RequestCardProps) {
       {/* Footer */}
       <div className="flex items-center justify-between text-xs text-gray-500">
         <span>
-          Created {new Date(request.created_at).toLocaleDateString()}
+          Created {request.created_at ? new Date(request.created_at).toLocaleDateString() : 'Unknown'}
         </span>
         <div className="flex items-center gap-3">
           {request.assessments && request.assessments.length > 0 && (

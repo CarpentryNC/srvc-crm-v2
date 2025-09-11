@@ -61,8 +61,8 @@ export default function InvoiceList({ className = '' }: InvoiceListProps) {
           bValue = new Date(b.created_at).getTime()
           break
         case 'amount':
-          aValue = a.total_amount
-          bValue = b.total_amount
+          aValue = (a.total_cents || 0) / 100
+          bValue = (b.total_cents || 0) / 100
           break
         case 'status':
           aValue = a.status
@@ -133,13 +133,13 @@ export default function InvoiceList({ className = '' }: InvoiceListProps) {
       sent: invoices.filter(i => i.status === 'sent').length,
       paid: invoices.filter(i => i.status === 'paid').length,
       overdue: invoices.filter(i => i.status === 'overdue').length,
-      totalAmount: invoices.reduce((sum, invoice) => sum + invoice.total_amount, 0),
+      totalAmount: invoices.reduce((sum, invoice) => sum + ((invoice.total_cents || 0) / 100), 0),
       paidAmount: invoices
         .filter(i => i.status === 'paid')
-        .reduce((sum, invoice) => sum + invoice.total_amount, 0),
+        .reduce((sum, invoice) => sum + ((invoice.total_cents || 0) / 100), 0),
       pendingAmount: invoices
         .filter(i => ['sent', 'overdue'].includes(i.status))
-        .reduce((sum, invoice) => sum + invoice.total_amount, 0)
+        .reduce((sum, invoice) => sum + ((invoice.total_cents || 0) / 100), 0)
     }
   }, [invoices])
 
@@ -372,7 +372,7 @@ export default function InvoiceList({ className = '' }: InvoiceListProps) {
         ) : (
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
             {filteredAndSortedInvoices.map((invoice) => {
-              const statusConfig = getStatusConfig(invoice.status)
+              const statusConfig = getStatusConfig(invoice.status as InvoiceStatus)
               const StatusIcon = statusConfig.icon
               const customerName = invoice.customer 
                 ? `${invoice.customer.first_name || ''} ${invoice.customer.last_name || ''}`.trim() 
@@ -414,7 +414,7 @@ export default function InvoiceList({ className = '' }: InvoiceListProps) {
                       <div className="flex items-center space-x-4">
                         <div className="text-right">
                           <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            ${invoice.total_amount.toLocaleString()}
+                            ${((invoice.total_cents || 0) / 100).toLocaleString()}
                           </p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
                             {format(new Date(invoice.created_at), 'MMM d, yyyy')}
@@ -459,7 +459,7 @@ export default function InvoiceList({ className = '' }: InvoiceListProps) {
             Showing {filteredAndSortedInvoices.length} of {invoices.length} invoices
           </span>
           <span>
-            Total: ${filteredAndSortedInvoices.reduce((sum, invoice) => sum + invoice.total_amount, 0).toLocaleString()}
+            Total: ${filteredAndSortedInvoices.reduce((sum, invoice) => sum + ((invoice.total_cents || 0) / 100), 0).toLocaleString()}
           </span>
         </div>
       )}
