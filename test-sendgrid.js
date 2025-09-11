@@ -10,8 +10,8 @@ dotenv.config();
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const msg = {
-  to: 'carpentry.owner@gmail.com', // Change to your verified recipient
-  from: 'carpentry.owner@gmail.com', // Must be your verified sender in SendGrid
+  to: 'carolinacarpentry.owner@gmail.com', // Change to your verified recipient
+  from: 'samir.emailme@gmail.com', // Must be your verified sender in SendGrid
   subject: 'SRVC CRM Email Test',
   text: 'This is a test email from your SRVC CRM application using SendGrid!',
   html: '<h2>SRVC CRM Email Test</h2><p>This is a test email from your <strong>SRVC CRM</strong> application using SendGrid!</p><p>✅ Email functionality is working correctly!</p>',

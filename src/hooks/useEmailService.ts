@@ -619,27 +619,35 @@ Email: your-email@company.com
         documentId: quote.id
       }
 
-      // For now, we'll simulate a successful email send
-      // TODO: Implement actual email sending via Supabase Edge Function or third-party service
-      // const { data, error: sendError } = await supabase.functions.invoke('send-email', {
-      //   body: emailRequest
-      // })
-      // if (sendError) throw sendError
+      // Check if we're running in local development
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       
-      // Call the edge function to send the email
-      const { data, error } = await supabase.functions.invoke('send-email', {
-        body: emailRequest
-      })
+      if (isLocal) {
+        // Development mode: simulate email sending
+        console.log('🚀 DEVELOPMENT MODE: Simulating quote email send')
+        console.log('📧 Email Request:', emailRequest)
+        console.log('✅ Email would be sent successfully in production')
+        
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        
+        console.log('✅ Quote email sent successfully (development mode)')
+      } else {
+        // Production mode: use the actual edge function
+        const { data, error } = await supabase.functions.invoke('send-email', {
+          body: emailRequest
+        })
 
-      if (error) {
-        throw new Error(`Failed to send email: ${error.message}`)
+        if (error) {
+          throw new Error(`Failed to send email: ${error.message}`)
+        }
+
+        if (!data?.success) {
+          throw new Error(data?.error || 'Failed to send email')
+        }
+
+        console.log('Email sent successfully:', data)
       }
-
-      if (!data?.success) {
-        throw new Error(data?.error || 'Failed to send email')
-      }
-
-      console.log('Email sent successfully:', data)
 
       return true
     } catch (err) {
@@ -692,27 +700,35 @@ Email: your-email@company.com
         documentId: invoice.id
       }
 
-      // For now, we'll simulate a successful email send
-      // TODO: Implement actual email sending via Supabase Edge Function or third-party service
-      // const { error: sendError } = await supabase.functions.invoke('send-email', {
-      //   body: emailRequest
-      // })
-      // if (sendError) throw sendError
+      // Check if we're running in local development
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       
-      // Call the edge function to send the email
-      const { data, error } = await supabase.functions.invoke('send-email', {
-        body: emailRequest
-      })
+      if (isLocal) {
+        // Development mode: simulate email sending
+        console.log('🚀 DEVELOPMENT MODE: Simulating invoice email send')
+        console.log('📧 Email Request:', emailRequest)
+        console.log('✅ Email would be sent successfully in production')
+        
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        
+        console.log('✅ Invoice email sent successfully (development mode)')
+      } else {
+        // Production mode: use the actual edge function
+        const { data, error } = await supabase.functions.invoke('send-email', {
+          body: emailRequest
+        })
 
-      if (error) {
-        throw new Error(`Failed to send email: ${error.message}`)
+        if (error) {
+          throw new Error(`Failed to send email: ${error.message}`)
+        }
+
+        if (!data?.success) {
+          throw new Error(data?.error || 'Failed to send email')
+        }
+
+        console.log('Email sent successfully:', data)
       }
-
-      if (!data?.success) {
-        throw new Error(data?.error || 'Failed to send email')
-      }
-
-      console.log('Email sent successfully:', data)
 
       return true
     } catch (err) {
