@@ -98,6 +98,8 @@ coverage/
 *.pfx
 secrets.json
 config/secrets.js
+.env.production
+*.env.production
 
 # Local configuration overrides
 config/local.js
