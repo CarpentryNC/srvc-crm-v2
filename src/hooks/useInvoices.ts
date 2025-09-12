@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 import type { Database } from '../types/database'
 
-type InvoiceRow = Database['public']['Tables']['invoices']['Row']
 type InvoiceInsert = Database['public']['Tables']['invoices']['Insert']
 type InvoiceUpdate = Database['public']['Tables']['invoices']['Update']
 type InvoiceLineItemInsert = Database['public']['Tables']['invoice_line_items']['Insert']
