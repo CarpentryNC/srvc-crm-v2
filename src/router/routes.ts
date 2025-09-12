@@ -31,8 +31,11 @@ export const routes = {
   
   INVOICES: '/invoices',
   INVOICES_NEW: '/invoices/new',
+  INVOICES_FROM_JOB: '/invoices/from-job',
   INVOICES_EDIT: '/invoices/:id/edit',
   INVOICES_VIEW: '/invoices/:id',
+  
+  PAYMENTS: '/payments',
   
   CALENDAR: '/calendar',
   SETTINGS: '/settings',

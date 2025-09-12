@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useInvoices, type Invoice, type InvoiceLineItem, type InvoicePayment } from '../../hooks/useInvoices';
 import { useCustomers } from '../../hooks/useCustomers';
+import { usePDFGeneration } from '../../hooks/usePDFGeneration';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { EnvelopeIcon } from '@heroicons/react/24/outline';
 import PaymentModal from './PaymentModal';
 import SendInvoiceEmailModal from '../emails/SendInvoiceEmailModal';
+import StripeInvoicePayment from './InvoicePayment';
 
 interface InvoiceViewProps {
   invoiceId?: string;
@@ -19,6 +21,7 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
   const navigate = useNavigate();
   const { getInvoice, updateInvoiceStatus, deleteInvoice, getInvoiceLineItems, getInvoicePayments, loading } = useInvoices();
   const { customers } = useCustomers();
+  const { generateInvoicePDF } = usePDFGeneration();
 
   const invoiceId = propInvoiceId || paramInvoiceId;
   
@@ -26,8 +29,10 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
   const [lineItems, setLineItems] = useState<InvoiceLineItem[]>([]);
   const [payments, setPayments] = useState<InvoicePayment[]>([]);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [showStripePayment, setShowStripePayment] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
 
   // Get customer data
   const customer = customers.find(c => c.id === invoice?.customer_id);
@@ -128,14 +133,39 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
     }
   };
 
-  // Generate PDF (placeholder for future implementation)
-  const handleGeneratePDF = () => {
-    toast.success('PDF generation coming soon!');
+  // Generate PDF with photos
+  const handleGeneratePDF = async () => {
+    if (!invoice) return;
+
+    try {
+      setGeneratingPDF(true);
+      
+      // Create invoice with relations for PDF generation
+      const invoiceWithRelations = {
+        ...invoice,
+        customer,
+        line_items: lineItems,
+        payments: payments
+      };
+
+      await generateInvoicePDF(invoiceWithRelations, {
+        includePhotos: true,
+        photoCategories: ['before', 'after'],
+        maxPhotosPerCategory: 4
+      });
+      
+      toast.success('PDF generated successfully!');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF. Please try again.');
+    } finally {
+      setGeneratingPDF(false);
+    }
   };
 
-  // Send invoice (placeholder for future implementation)  
+  // Send invoice via email modal
   const handleSendInvoice = () => {
-    toast.success('Invoice sending coming soon!');
+    setShowEmailModal(true);
   };
 
   const handleClose = () => {
@@ -165,9 +195,23 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
   };
 
   // Handle successful email sending
-  const handleEmailSuccess = () => {
+  const handleEmailSuccess = async () => {
     setShowEmailModal(false);
     toast.success('Invoice sent via email successfully!');
+    
+    // Update invoice status from draft to sent
+    if (invoice && invoice.status === 'draft') {
+      const success = await updateInvoiceStatus(invoice.id, 'sent');
+      if (success) {
+        // Refresh the invoice data to show updated status
+        if (invoiceId) {
+          const updatedInvoice = await getInvoice(invoiceId);
+          if (updatedInvoice) {
+            setInvoice(updatedInvoice);
+          }
+        }
+      }
+    }
   };
 
   if (loading) {
@@ -233,8 +277,9 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
               <>
                 <button
                   onClick={handleSendInvoice}
-                  className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
+                  className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 flex items-center"
                 >
+                  <EnvelopeIcon className="w-4 h-4 mr-2" />
                   Send Invoice
                 </button>
                 <Link
@@ -246,19 +291,29 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
               </>
             )}
             
-            <button
-              onClick={() => setShowEmailModal(true)}
-              className="px-3 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:ring-2 focus:ring-green-500 flex items-center"
-            >
-              <EnvelopeIcon className="w-4 h-4 mr-2" />
-              Send Invoice
-            </button>
+            {invoice.status !== 'draft' && (
+              <button
+                onClick={handleSendInvoice}
+                className="px-3 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:ring-2 focus:ring-green-500 flex items-center"
+              >
+                <EnvelopeIcon className="w-4 h-4 mr-2" />
+                Resend Invoice
+              </button>
+            )}
 
             <button
               onClick={handleGeneratePDF}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-blue-500"
+              disabled={generatingPDF}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
             >
-              Download PDF
+              {generatingPDF ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                  Generating...
+                </>
+              ) : (
+                'Download PDF with Photos'
+              )}
             </button>
 
             {/* More Actions Dropdown */}
@@ -438,12 +493,20 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
               Payment Summary
             </h3>
             {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
-              <button
-                onClick={() => setIsPaymentModalOpen(true)}
-                className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:ring-2 focus:ring-green-500"
-              >
-                Record Payment
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsPaymentModalOpen(true)}
+                  className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:ring-2 focus:ring-green-500"
+                >
+                  Record Payment
+                </button>
+                <button
+                  onClick={() => setShowStripePayment(true)}
+                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
+                >
+                  Pay with Stripe
+                </button>
+              </div>
             )}
           </div>
           
@@ -547,6 +610,38 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
         />
       )}
 
+      {/* Stripe Payment Modal */}
+      {showStripePayment && invoice && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Pay Invoice with Stripe</h2>
+                <button
+                  onClick={() => setShowStripePayment(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <StripeInvoicePayment
+                invoiceId={invoice.id}
+                onPaymentSuccess={() => {
+                  setShowStripePayment(false)
+                  toast.success('Payment successful!')
+                  handlePaymentRecorded()
+                }}
+                onPaymentError={(error) => {
+                  toast.error(`Payment failed: ${error}`)
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Send Invoice Email Modal */}
       {invoice && customer && (
         <SendInvoiceEmailModal
@@ -555,8 +650,8 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
           invoice={{
             ...invoice,
             customer,
-            line_items: lineItems as any,
-            payments: payments as any
+            line_items: lineItems,
+            payments: payments
           }}
           onSuccess={handleEmailSuccess}
         />

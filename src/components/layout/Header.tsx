@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../contexts/ThemeContext'
 import { SmartSearch } from '../search/SmartSearch'
+import NotificationBell from '../ui/NotificationBell'
 
 interface HeaderProps {
   sidebarOpen: boolean;
@@ -111,13 +112,7 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
             </button>
 
             {/* Notifications */}
-            <button className="p-2 text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
-              <span className="sr-only">View notifications</span>
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0v0a4 4 0 014-4v0c1.473 0 2.83.802 3.536 2.114A3.989 3.989 0 0116 7v0a4 4 0 01-3 3.874V15a2 2 0 01-2 2H9a2 2 0 01-2-2v-2.126A4.002 4.002 0 014 11V7a4 4 0 018 0z" />
-              </svg>
-            </button>
+            <NotificationBell />
 
             {/* Profile dropdown */}
             <div className="flex items-center space-x-3">

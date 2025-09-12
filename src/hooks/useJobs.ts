@@ -12,6 +12,20 @@ import type {
   JobStatusUpdate
 } from '../types/job';
 
+// Temporary interface for notification creation until types are regenerated
+interface NotificationInsert {
+  user_id: string;
+  type: string;
+  title: string;
+  message: string;
+  action_type: string;
+  action_data: {
+    job_id: string;
+    customer_id: string;
+  };
+  priority: string;
+}
+
 export function useJobs() {
   const { user } = useAuth();
   const [jobs, setJobs] = useState<JobWithCustomer[]>([]);
@@ -113,22 +127,22 @@ export function useJobs() {
 
       const stats: JobStats = {
         total: data?.length || 0,
-        pending: data?.filter((j: any) => j.status === 'pending').length || 0,
-        inProgress: data?.filter((j: any) => j.status === 'in_progress').length || 0,
-        completed: data?.filter((j: any) => j.status === 'completed').length || 0,
-        cancelled: data?.filter((j: any) => j.status === 'cancelled').length || 0,
-        scheduledToday: data?.filter((j: any) => {
+        pending: data?.filter((j) => j.status === 'pending').length || 0,
+        inProgress: data?.filter((j) => j.status === 'in_progress').length || 0,
+        completed: data?.filter((j) => j.status === 'completed').length || 0,
+        cancelled: data?.filter((j) => j.status === 'cancelled').length || 0,
+        scheduledToday: data?.filter((j) => {
           if (!j.scheduled_date) return false;
           const scheduled = new Date(j.scheduled_date);
           return scheduled.toDateString() === today.toDateString();
         }).length || 0,
-        overdue: data?.filter((j: any) => {
+        overdue: data?.filter((j) => {
           if (!j.scheduled_date || j.status === 'completed' || j.status === 'cancelled') return false;
           const scheduled = new Date(j.scheduled_date);
           return scheduled < today;
         }).length || 0,
-        thisWeek: data?.filter((j: any) => new Date(j.created_at) >= weekStart).length || 0,
-        thisMonth: data?.filter((j: any) => new Date(j.created_at) >= monthStart).length || 0,
+        thisWeek: data?.filter((j) => new Date(j.created_at) >= weekStart).length || 0,
+        thisMonth: data?.filter((j) => new Date(j.created_at) >= monthStart).length || 0,
       };
 
       setStats(stats);
@@ -138,7 +152,7 @@ export function useJobs() {
   }, [user]);
 
   // Helper function to create calendar event for job
-  const createJobCalendarEvent = useCallback(async (job: Job, customer?: any) => {
+  const createJobCalendarEvent = useCallback(async (job: Job, customer?: { first_name: string; last_name: string }) => {
     if (!job.scheduled_date || !user) return;
 
     try {
@@ -188,7 +202,7 @@ export function useJobs() {
         status: 'pending',
       };
 
-      const { data, error: createError } = await (supabase as any)
+      const { data, error: createError } = await supabase
         .from('jobs')
         .insert(insertData)
         .select(`
@@ -258,7 +272,7 @@ export function useJobs() {
 
       const { id, ...updateData } = jobUpdate;
 
-      const { data, error: updateError } = await (supabase as any)
+      const { data, error: updateError } = await supabase
         .from('jobs')
         .update({
           ...updateData,
@@ -323,7 +337,7 @@ export function useJobs() {
 
       // Append notes if provided
       if (statusUpdate.notes) {
-        const { data: currentJob } = await (supabase as any)
+        const { data: currentJob } = await supabase
           .from('jobs')
           .select('notes')
           .eq('id', statusUpdate.id)
@@ -337,7 +351,7 @@ export function useJobs() {
           : `[${timestamp}] Status changed to ${statusUpdate.status}: ${statusUpdate.notes}`;
       }
 
-      const { data, error: updateError } = await (supabase as any)
+      const { data, error: updateError } = await supabase
         .from('jobs')
         .update(updateData)
         .eq('id', statusUpdate.id)
@@ -356,6 +370,39 @@ export function useJobs() {
         .single();
 
       if (updateError) throw updateError;
+
+      // Create notification when job is completed
+      if (statusUpdate.status === 'completed') {
+        try {
+          // Create invoice reminder notification using supabase client directly
+          // Note: notifications table not yet in generated types, using type assertion
+          const notificationData: NotificationInsert = {
+            user_id: user.id,
+            type: 'invoice_reminder',
+            title: 'Job Completed - Create Invoice',
+            message: `Job "${data.title}" has been completed. You can now create an invoice for this job.`,
+            action_type: 'create_invoice',
+            action_data: {
+              job_id: data.id,
+              customer_id: data.customer_id
+            },
+            priority: 'high'
+          };
+          
+          // Use type assertion for database operation since notifications table not in generated types
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { error: notificationError } = await (supabase as any)
+            .from('notifications')
+            .insert(notificationData);
+          
+          if (notificationError) {
+            console.warn('Failed to create completion notification:', notificationError);
+          }
+        } catch (notificationError) {
+          // Don't fail the job update if notification creation fails
+          console.warn('Failed to create completion notification:', notificationError);
+        }
+      }
 
       // Update local state
       setJobs(prev => 

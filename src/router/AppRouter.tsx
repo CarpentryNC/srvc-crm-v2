@@ -22,8 +22,10 @@ import QuoteDetailPage from '../components/quotes/QuoteDetailPage';
 import QuoteEditPage from '../components/quotes/QuoteEditPage';
 import InvoiceList from '../components/invoices/InvoiceList';
 import InvoiceView from '../components/invoices/InvoiceView';
+import JobToInvoiceConverter from '../components/invoices/JobToInvoiceConverter';
 import ProductLibrary from '../components/products/ProductLibrary';
 import Calendar from '../components/calendar/Calendar';
+import { PaymentTrackingPage } from '../pages';
 import { ResetPasswordForm } from '../components/features/ResetPasswordForm';
 import { routes } from './routes';
 
@@ -271,6 +273,17 @@ export function AppRouter() {
           />
           
           <Route
+            path={routes.INVOICES_FROM_JOB}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <JobToInvoiceConverter />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
             path={routes.INVOICES_NEW}
             element={
               <ProtectedRoute>
@@ -298,6 +311,17 @@ export function AppRouter() {
               <ProtectedRoute>
                 <Layout>
                   <ComingSoon title="Edit Invoice" />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path={routes.PAYMENTS}
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PaymentTrackingPage />
                 </Layout>
               </ProtectedRoute>
             }
