@@ -64,6 +64,15 @@ export function useNotifications() {
       setUnreadCount(notificationData.filter(n => !n.is_read).length)
     } catch (err) {
       console.error('Error fetching notifications:', err)
+      // Gracefully handle missing notifications table in production
+      const error = err as { code?: string; message?: string }
+      if (error?.code === 'PGRST205' && error?.message?.includes("Could not find the table 'public.notifications'")) {
+        console.log('Notifications table not found - this is expected until migration is applied')
+        setNotifications([])
+        setUnreadCount(0)
+        setError(null)
+        return
+      }
       setError(err instanceof Error ? err.message : 'Failed to fetch notifications')
     } finally {
       setLoading(false)
@@ -253,6 +262,12 @@ export function useNotifications() {
       await fetchNotifications()
     } catch (err) {
       console.error('Error cleaning up expired notifications:', err)
+      // Gracefully handle missing notifications table
+      const error = err as { code?: string; message?: string }
+      if (error?.code === 'PGRST205' && error?.message?.includes("Could not find the table 'public.notifications'")) {
+        console.log('Notifications table not found - skipping cleanup')
+        return
+      }
     }
   }, [user, fetchNotifications])
 
