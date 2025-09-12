@@ -7,13 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface PaymentIntentRequest {
-  invoiceId: string
-  returnUrl: string
-  customerId?: string
-  metadata?: Record<string, string>
-}
-
 interface PaymentIntentResponse {
   success: boolean
   client_secret?: string
@@ -53,13 +46,20 @@ serve(async (req) => {
     }
 
     if (req.method === 'POST') {
-      const { invoiceId, metadata }: PaymentIntentRequest = await req.json()
-
+      const requestBody = await req.json()
+      console.log('Request body received:', requestBody)
+      
+      const { invoiceId, metadata } = requestBody
+      
       if (!invoiceId) {
         throw new Error('Invoice ID is required')
       }
 
+      console.log(`Processing payment intent for invoice: ${invoiceId}`)
+
       // Fetch invoice details
+      console.log(`Looking for invoice: ${invoiceId} for user: ${user.id}`)
+      
       const { data: invoice, error: invoiceError } = await supabaseClient
         .from('invoices')
         .select(`
@@ -77,8 +77,18 @@ serve(async (req) => {
         .eq('user_id', user.id)
         .single()
 
+      console.log('Invoice query result:', { invoice, invoiceError })
+
       if (invoiceError || !invoice) {
-        throw new Error('Invoice not found')
+        // Additional debugging - check if invoice exists with different user
+        const { data: anyInvoice } = await supabaseClient
+          .from('invoices')
+          .select('id, user_id, invoice_number')
+          .eq('id', invoiceId)
+          .single()
+        
+        console.log('Invoice exists for different user?', anyInvoice)
+        throw new Error(`Invoice not found. Invoice ID: ${invoiceId}, User ID: ${user.id}`)
       }
 
       // Check if invoice is already paid
