@@ -2,9 +2,24 @@
 
 ## Project Architecture
 
-**Modern React TypeScript CRM** with Supabase backend featuring customer management, job tracking, quotes/invoices, and dual Stripe integration.
+**Modern React TypeScript CRM** with Supabase backend featuring customer management, job tracking, quotes/invoices, and dual Stripe i## Current Implementation Status
 
-**Tech Stack:** React 19 + TypeScript + Vite + Tailwind CSS + Supabase + Stripe  
+### ✅ Completed Features
+- **Customer Management:** Full CRUD with search, filtering, grid/table views
+- **CSV Import:** Professional multi-step import with Edge Function processing
+- **Authentication:** Supabase Auth with protected routes and session management
+- **Dashboard:** Responsive layout with stats, navigation, and dark mode
+- **Real-time Updates:** Live data synchronization across all components
+- **Email System:** Production-ready SendGrid integration with Edge Functions
+- **Quote/Invoice Emails:** Real email sending with tracking and PDF attachments
+- **Calendar Infrastructure:** Master calendar system ready for Phase 4
+
+### 🔄 Next Phase (Jobs Management)
+- Create `useJobs.ts` hook following `useCustomers.ts` pattern
+- Build job CRUD components in `src/components/jobs/`
+- Link jobs to customers via `customer_id` foreign key
+- Implement job status workflow (pending → in_progress → completed)
+- Integrate calendar events for job scheduling*Tech Stack:** React 19 + TypeScript + Vite + Tailwind CSS + Supabase + Stripe  
 **Status:** Phase 2 Complete (Customer Management) → Phase 3 Next (Jobs Management)
 
 ## Critical Development Patterns
@@ -109,6 +124,40 @@ docker exec -i supabase_db_SRVC_Base_v_1.5 psql -U postgres -d postgres < supaba
 - Ensures migrations are applied correctly to local instance
 - Maintains consistency with production deployment patterns
 
+### Edge Functions & Email Service Architecture
+
+**Email Service Pattern (useEmailService.tsx):**
+```typescript
+// Production email sending with Edge Function authentication
+const { user } = useAuth();
+const emailResult = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${session.access_token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(emailData)
+});
+```
+
+**Edge Function Authentication Pattern:**
+```typescript
+// Edge Functions use service role key for admin operations
+const supabaseClient = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
+
+// Verify user JWT token from frontend
+const { data: { user }, error } = await supabaseClient.auth.getUser(token);
+```
+
+**Production Email System:**
+- **Development Mode:** Simulated email sending (no real emails)
+- **Production Mode:** Real SendGrid integration via Edge Function
+- **Email Tracking:** All emails logged in `sent_emails` table with RLS
+- **Service Integration:** Quote/invoice emails with PDF attachments
+
 ### CSV Import Architecture (Reference Implementation)
 ```typescript
 // Multi-step workflow: upload → mapping → preview → processing → results
@@ -150,13 +199,27 @@ npm run build                 # TypeScript compilation + Vite build
 npm run preview               # Preview production build
 ```
 
-### Environment Configuration
+### Environment Configuration (Complete Authentication Setup)
 ```bash
-# Required environment variables (.env)
+# Frontend Authentication (.env)
 VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_SUPABASE_ANON_KEY=your-anon-public-key
 VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+
+# Backend/Edge Function Authentication
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-secret-key
+SENDGRID_API_KEY=SG.your-sendgrid-api-key
 ```
+
+**Authentication Architecture:**
+- **Frontend (Components/Hooks):** Uses `VITE_SUPABASE_ANON_KEY` for user authentication and RLS-protected queries
+- **Edge Functions:** Uses `SUPABASE_SERVICE_ROLE_KEY` for admin operations, JWT verification, and bypassing RLS
+- **Production Deployment:** Both keys required in production environment (Netlify/Vercel)
+
+**Key Configuration Rules:**
+- `VITE_` prefixed vars are exposed to browser (safe for anon key)
+- Service role key is SERVER-ONLY (Edge Functions, never frontend)
+- Both keys from same Supabase project but different roles/permissions
 
 ## Current Implementation Status
 
@@ -182,9 +245,38 @@ VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
 5. **Follow RLS patterns:** All database access must be user-scoped
 6. **Use real-time subscriptions:** For live data updates across components
 7. **Local migration workflow:** Use Docker exec method for applying migrations locally - `supabase db push` is unreliable in this environment
+8. **Service role key security:** Never expose service role key in frontend code - Edge Functions only
+9. **Production email testing:** Use `?emailMode=production` parameter to test real email sending
 
-## File Import Reference
+## Production Deployment Configuration
+
+### Netlify Environment Variables (Required)
+```bash
+# Frontend Authentication
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-public-key-here
+
+# Edge Function Authentication (Server-side only)
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-secret-key-here
+
+# Email Service Configuration
+SENDGRID_API_KEY=SG.your-sendgrid-api-key-here
+
+# Stripe Configuration
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_your_production_stripe_key_here
+```
+
+**Critical Deployment Notes:**
+- Service role key enables Edge Function authentication and database operations
+- Both anon and service role keys must match production Supabase project
+- SendGrid API key required for production email sending
+- Edge Functions automatically deployed to production Supabase instance
+
+## File Import & Email Reference
 - **Edge Function deployment:** `supabase functions deploy import-customers`
+- **Email function deployment:** `supabase functions deploy send-email`
 - **Multipart processing:** See `getCsvBuffer()` in import-customers/index.ts
 - **Frontend upload:** FormData with Bearer token authentication
 - **Email optional:** Recent schema change allows null emails in customers table
+- **Production email testing:** Use `?emailMode=production` URL parameter
+- **Email tracking:** All emails logged in `sent_emails` table with user-scoped RLS
