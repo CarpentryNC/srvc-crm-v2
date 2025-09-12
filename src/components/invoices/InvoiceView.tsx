@@ -95,6 +95,8 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
         return `${baseClasses} bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300`;
       case 'paid':
         return `${baseClasses} bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300`;
+      case 'partially_paid':
+        return `${baseClasses} bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300`;
       case 'overdue':
         return `${baseClasses} bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300`;
       case 'cancelled':
@@ -630,7 +632,7 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
                 Mark as Sent
               </button>
             )}
-            {(invoice.status === 'sent' || invoice.status === 'overdue') && paidAmount >= totalAmount && (
+            {(invoice.status === 'sent' || invoice.status === 'overdue' || invoice.status === 'partially_paid') && paidAmount >= totalAmount && (
               <button
                 onClick={() => handleStatusUpdate('paid')}
                 className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:ring-2 focus:ring-green-500"

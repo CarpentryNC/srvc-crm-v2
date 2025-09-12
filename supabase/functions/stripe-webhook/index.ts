@@ -112,23 +112,7 @@ async function handlePaymentSuccess(supabaseClient: SupabaseClient, paymentInten
   try {
     console.log(`Processing successful payment for invoice ${invoiceId}`)
 
-    // Start a transaction-like operation
-    // 1. Update invoice status to paid
-    const { error: invoiceUpdateError } = await supabaseClient
-      .from('invoices')
-      .update({
-        status: 'paid',
-        paid_date: new Date().toISOString(),
-        stripe_payment_intent_id: paymentIntent.id
-      })
-      .eq('id', invoiceId)
-      .eq('user_id', userId)
-
-    if (invoiceUpdateError) {
-      throw new Error(`Failed to update invoice: ${invoiceUpdateError.message}`)
-    }
-
-    // 2. Record the payment in invoice_payments table
+    // 1. First record the payment in invoice_payments table
     const { error: paymentInsertError } = await supabaseClient
       .from('invoice_payments')
       .insert({
@@ -143,17 +127,72 @@ async function handlePaymentSuccess(supabaseClient: SupabaseClient, paymentInten
       })
 
     if (paymentInsertError) {
-      console.error('Failed to record payment:', paymentInsertError)
-      // Don't throw here as the invoice is already marked as paid
+      throw new Error(`Failed to record payment: ${paymentInsertError.message}`)
     }
 
-    // 3. Log the successful payment
-    console.log(`Successfully processed payment for invoice ${invoiceId}, amount: $${paymentIntent.amount / 100}`)
+    // 2. Get invoice details to check if fully paid
+    const { data: invoice, error: invoiceError } = await supabaseClient
+      .from('invoices')
+      .select('id, total_cents, status')
+      .eq('id', invoiceId)
+      .eq('user_id', userId)
+      .single()
+
+    if (invoiceError) {
+      throw new Error(`Failed to fetch invoice: ${invoiceError.message}`)
+    }
+
+    // 3. Calculate total payments to determine new status
+    const { data: paymentsTotal, error: paymentsError } = await supabaseClient
+      .from('invoice_payments')
+      .select('amount_cents')
+      .eq('invoice_id', invoiceId)
+      .eq('user_id', userId)
+      .eq('status', 'completed')
+
+    if (paymentsError) {
+      throw new Error(`Failed to calculate payments: ${paymentsError.message}`)
+    }
+
+    const totalPaidCents = paymentsTotal.reduce((sum, payment) => sum + payment.amount_cents, 0)
+    const isFullyPaid = totalPaidCents >= invoice.total_cents
+    
+    // 4. Update invoice status based on payment amount
+    const newStatus = isFullyPaid ? 'paid' : 'partially_paid'
+    const updateData: {
+      status: string
+      stripe_payment_intent_id: string
+      paid_date?: string
+    } = {
+      status: newStatus,
+      stripe_payment_intent_id: paymentIntent.id
+    }
+
+    // Only set paid_date when fully paid
+    if (isFullyPaid) {
+      updateData.paid_date = new Date().toISOString()
+    }
+
+    const { error: invoiceUpdateError } = await supabaseClient
+      .from('invoices')
+      .update(updateData)
+      .eq('id', invoiceId)
+      .eq('user_id', userId)
+
+    if (invoiceUpdateError) {
+      throw new Error(`Failed to update invoice: ${invoiceUpdateError.message}`)
+    }
+
+    // 5. Log the successful payment with status
+    console.log(`Successfully processed payment for invoice ${invoiceId}. Amount: $${paymentIntent.amount / 100}. Status: ${newStatus}`)
+
+    // 5. Log the successful payment with status
+    console.log(`Successfully processed payment for invoice ${invoiceId}. Amount: $${paymentIntent.amount / 100}. Status: ${newStatus}`)
 
   } catch (error) {
     console.error('Error handling payment success:', error)
     
-    // Attempt to revert invoice status if payment recording failed
+    // Attempt to revert any partial changes if needed
     try {
       await supabaseClient
         .from('invoices')

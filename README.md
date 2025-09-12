@@ -130,7 +130,7 @@ CREATE TABLE invoices (
   subtotal numeric NOT NULL DEFAULT 0,
   tax_amount numeric NOT NULL DEFAULT 0,
   total_amount numeric NOT NULL DEFAULT 0,
-  status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'paid', 'overdue', 'cancelled')),
+  status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'paid', 'partially_paid', 'overdue', 'cancelled')),
   due_date timestamptz,
   paid_date timestamptz,
   stripe_payment_intent_id text

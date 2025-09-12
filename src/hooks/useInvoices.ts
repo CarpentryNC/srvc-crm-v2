@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
+import type { Database } from '../types/database'
+
+type InvoiceRow = Database['public']['Tables']['invoices']['Row']
+type InvoiceInsert = Database['public']['Tables']['invoices']['Insert']
+type InvoiceUpdate = Database['public']['Tables']['invoices']['Update']
+type InvoiceLineItemInsert = Database['public']['Tables']['invoice_line_items']['Insert']
+type InvoicePaymentInsert = Database['public']['Tables']['invoice_payments']['Insert']
+type QuoteRow = Database['public']['Tables']['quotes']['Row']
+type QuoteLineItemRow = Database['public']['Tables']['quote_line_items']['Row']
 
 // Simple type definitions to avoid conflicts
 export interface Invoice {
@@ -162,7 +171,7 @@ export function useInvoices() {
   const generateInvoiceNumber = useCallback(async (): Promise<string> => {
     if (!user) throw new Error('User not authenticated')
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('invoices')
       .select('invoice_number')
       .eq('user_id', user.id)
@@ -255,22 +264,24 @@ export function useInvoices() {
       const tax_cents = Math.round(subtotal_cents * 0.0875) // 8.75% tax rate
       const total_cents = subtotal_cents + tax_cents
 
-      // Create invoice using any type to bypass strict typing
-      const { data: invoice, error: invoiceError } = await (supabase as any)
+      // Create invoice using typed interface
+      const invoiceInsert: InvoiceInsert = {
+        user_id: user.id,
+        customer_id: invoiceData.customer_id,
+        quote_id: invoiceData.quote_id || null,
+        invoice_number,
+        title: invoiceData.title,
+        description: invoiceData.description || null,
+        subtotal_cents,
+        tax_cents,
+        total_cents,
+        due_date: invoiceData.due_date || null,
+        status: 'draft'
+      }
+
+      const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
-        .insert({
-          user_id: user.id,
-          customer_id: invoiceData.customer_id,
-          quote_id: invoiceData.quote_id,
-          invoice_number,
-          title: invoiceData.title,
-          description: invoiceData.description,
-          subtotal_cents,
-          tax_cents,
-          total_cents,
-          due_date: invoiceData.due_date,
-          status: 'draft'
-        })
+        .insert(invoiceInsert)
         .select('id')
         .single()
 
@@ -278,15 +289,18 @@ export function useInvoices() {
 
       // Create line items if provided
       if (invoiceData.line_items && invoiceData.line_items.length > 0) {
-        const lineItemsWithInvoiceId = invoiceData.line_items.map((item, index) => ({
-          ...item,
+        const lineItemsWithInvoiceId: InvoiceLineItemInsert[] = invoiceData.line_items.map((item, index) => ({
           invoice_id: invoice.id,
           user_id: user.id,
+          title: item.title,
+          description: item.description || null,
+          quantity: item.quantity,
+          unit_price_cents: item.unit_price_cents,
           total_cents: item.quantity * item.unit_price_cents,
           sort_order: item.sort_order ?? index
         }))
 
-        const { error: lineItemsError } = await (supabase as any)
+        const { error: lineItemsError } = await supabase
           .from('invoice_line_items')
           .insert(lineItemsWithInvoiceId)
 
@@ -317,19 +331,22 @@ export function useInvoices() {
     try {
       setError(null)
 
-      const updates: any = { 
+      const updates: InvoiceUpdate = { 
         status,
         updated_at: new Date().toISOString()
       }
 
-      // Set paid_date when marking as paid
+      // Set paid_date when marking as paid, clear it for other statuses
       if (status === 'paid') {
         updates.paid_date = new Date().toISOString()
+      } else if (status === 'partially_paid') {
+        // For partially paid, keep existing paid_date or don't set it yet
+        // This allows for multiple partial payments before full payment
       } else {
         updates.paid_date = null
       }
 
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('invoices')
         .update(updates)
         .eq('id', invoiceId)
@@ -390,14 +407,21 @@ export function useInvoices() {
     try {
       setError(null)
 
-      const { error } = await (supabase as any)
+      const paymentInsert: InvoicePaymentInsert = {
+        invoice_id: invoiceId,
+        user_id: user.id,
+        amount_cents: paymentData.amount_cents,
+        payment_date: paymentData.payment_date,
+        payment_method: paymentData.payment_method,
+        transaction_id: paymentData.transaction_id || null,
+        stripe_payment_intent_id: paymentData.stripe_payment_intent_id || null,
+        notes: paymentData.notes || null,
+        status: paymentData.status || 'completed'
+      }
+
+      const { error } = await supabase
         .from('invoice_payments')
-        .insert({
-          ...paymentData,
-          invoice_id: invoiceId,
-          user_id: user.id,
-          status: paymentData.status || 'completed'
-        })
+        .insert(paymentInsert)
 
       if (error) throw error
 
@@ -430,7 +454,7 @@ export function useInvoices() {
       setError(null)
 
       // First, fetch the quote with all its data
-      const { data: quote, error: quoteError } = await (supabase as any)
+      const { data: quote, error: quoteError } = await supabase
         .from('quotes')
         .select(`
           *,
@@ -446,47 +470,50 @@ export function useInvoices() {
       // Generate invoice number
       const invoice_number = await generateInvoiceNumber()
 
-      // Use quote totals (already calculated) with type assertion
-      const subtotal_cents = (quote as any).subtotal_cents
-      const tax_cents = (quote as any).tax_cents
-      const total_cents = (quote as any).total_cents
+      // Use quote totals (already calculated) with proper typing
+      const quoteWithLineItems = quote as QuoteRow & { quote_line_items: QuoteLineItemRow[] }
+      const subtotal_cents = quoteWithLineItems.subtotal_cents
+      const tax_cents = quoteWithLineItems.tax_cents
+      const total_cents = quoteWithLineItems.total_cents
 
       // Create invoice
-      const { data: invoice, error: invoiceError } = await (supabase as any)
+      const invoiceInsert: InvoiceInsert = {
+        user_id: user.id,
+        customer_id: quoteWithLineItems.customer_id,
+        quote_id: quoteId,
+        invoice_number,
+        title: invoiceData.title,
+        description: invoiceData.description || null,
+        subtotal_cents,
+        tax_cents,
+        total_cents,
+        due_date: invoiceData.due_date || null,
+        status: 'draft'
+      }
+
+      const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
-        .insert({
-          user_id: user.id,
-          customer_id: (quote as any).customer_id,
-          quote_id: quoteId,
-          invoice_number,
-          title: invoiceData.title,
-          description: invoiceData.description,
-          subtotal_cents,
-          tax_cents,
-          total_cents,
-          due_date: invoiceData.due_date,
-          status: 'draft'
-        })
+        .insert(invoiceInsert)
         .select('id')
         .single()
 
       if (invoiceError) throw invoiceError
 
       // Copy line items from quote to invoice
-      const quoteLineItems = (quote as any).quote_line_items
+      const quoteLineItems = quoteWithLineItems.quote_line_items
       if (quoteLineItems && quoteLineItems.length > 0) {
-        const invoiceLineItems = quoteLineItems.map((item: any) => ({
+        const invoiceLineItems: InvoiceLineItemInsert[] = quoteLineItems.map((item: QuoteLineItemRow) => ({
           invoice_id: invoice.id,
           user_id: user.id,
           title: item.title?.trim() || item.description?.trim() || 'Service Item',
           description: item.description || null,
           quantity: item.quantity,
           unit_price_cents: item.unit_price_cents,
-          total_cents: item.total_cents,
+          total_cents: item.total_cents || (item.quantity * item.unit_price_cents),
           sort_order: item.sort_order
         }))
 
-        const { error: lineItemsError } = await (supabase as any)
+        const { error: lineItemsError } = await supabase
           .from('invoice_line_items')
           .insert(invoiceLineItems)
 
@@ -513,7 +540,7 @@ export function useInvoices() {
     if (!user) return null
 
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('invoices')
         .select(`
           *,
@@ -550,7 +577,7 @@ export function useInvoices() {
     if (!user) return []
 
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('invoice_line_items')
         .select('*')
         .eq('invoice_id', invoiceId)
@@ -570,7 +597,7 @@ export function useInvoices() {
     if (!user) return []
 
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('invoice_payments')
         .select('*')
         .eq('invoice_id', invoiceId)

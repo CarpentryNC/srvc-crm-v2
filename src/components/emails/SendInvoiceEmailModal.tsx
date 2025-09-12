@@ -120,6 +120,7 @@ export default function SendInvoiceEmailModal({
 
   const isOverdue = invoice.due_date && new Date(invoice.due_date) < new Date()
   const isPaid = invoice.status === 'paid'
+  const isPartiallyPaid = invoice.status === 'partially_paid'
 
   if (!isOpen) return null
 
@@ -157,7 +158,12 @@ export default function SendInvoiceEmailModal({
                       Paid
                     </span>
                   )}
-                  {isOverdue && !isPaid && (
+                  {isPartiallyPaid && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      Partially Paid
+                    </span>
+                  )}
+                  {isOverdue && !isPaid && !isPartiallyPaid && (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                       <ExclamationTriangleIcon className="h-3 w-3 mr-1" />
                       Overdue
@@ -177,7 +183,7 @@ export default function SendInvoiceEmailModal({
           </div>
 
           {/* Overdue Warning */}
-          {isOverdue && !isPaid && (
+          {isOverdue && !isPaid && !isPartiallyPaid && (
             <div className="mt-4 rounded-md bg-yellow-50 dark:bg-yellow-900/20 p-4">
               <div className="flex">
                 <div className="flex-shrink-0">

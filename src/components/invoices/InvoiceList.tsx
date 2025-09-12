@@ -14,8 +14,7 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline'
 import { useInvoices } from '../../hooks/useInvoices'
-
-type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled'
+import type { InvoiceStatus } from '../../types/invoice'
 
 interface InvoiceListProps {
   className?: string
@@ -104,6 +103,12 @@ export default function InvoiceList({ className = '' }: InvoiceListProps) {
           icon: CheckCircleIcon,
           className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
         }
+      case 'partially_paid':
+        return {
+          label: 'Partially Paid',
+          icon: CurrencyDollarIcon,
+          className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+        }
       case 'overdue':
         return {
           label: 'Overdue',
@@ -132,13 +137,14 @@ export default function InvoiceList({ className = '' }: InvoiceListProps) {
       draft: invoices.filter(i => i.status === 'draft').length,
       sent: invoices.filter(i => i.status === 'sent').length,
       paid: invoices.filter(i => i.status === 'paid').length,
+      partially_paid: invoices.filter(i => i.status === 'partially_paid').length,
       overdue: invoices.filter(i => i.status === 'overdue').length,
       totalAmount: invoices.reduce((sum, invoice) => sum + ((invoice.total_cents || 0) / 100), 0),
       paidAmount: invoices
         .filter(i => i.status === 'paid')
         .reduce((sum, invoice) => sum + ((invoice.total_cents || 0) / 100), 0),
       pendingAmount: invoices
-        .filter(i => ['sent', 'overdue'].includes(i.status))
+        .filter(i => ['sent', 'overdue', 'partially_paid'].includes(i.status))
         .reduce((sum, invoice) => sum + ((invoice.total_cents || 0) / 100), 0)
     }
   }, [invoices])
@@ -308,6 +314,7 @@ export default function InvoiceList({ className = '' }: InvoiceListProps) {
                   <option value="draft">Draft</option>
                   <option value="sent">Sent</option>
                   <option value="paid">Paid</option>
+                  <option value="partially_paid">Partially Paid</option>
                   <option value="overdue">Overdue</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
