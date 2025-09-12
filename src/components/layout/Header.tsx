@@ -93,6 +93,17 @@ export function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
           </div>
           
           <div className="flex items-center space-x-4">
+            {/* Environment Indicator */}
+            <div className="flex items-center">
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                import.meta.env.VITE_SUPABASE_URL?.includes('127.0.0.1') || import.meta.env.VITE_SUPABASE_URL?.includes('localhost')
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                  : 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+              }`}>
+                {import.meta.env.VITE_SUPABASE_URL?.includes('127.0.0.1') || import.meta.env.VITE_SUPABASE_URL?.includes('localhost') ? '🏠 LOCAL' : '🌐 PRODUCTION'}
+              </span>
+            </div>
+
             {/* Theme toggle */}
             <button
               onClick={toggleTheme}

@@ -59,7 +59,18 @@ serve(async (req) => {
 
       // Fetch invoice details
       console.log(`Looking for invoice: ${invoiceId} for user: ${user.id}`)
+      console.log('Using service role key, should bypass RLS')
       
+      // First check if invoice exists at all (debugging)
+      const { data: anyInvoice, error: anyError } = await supabaseClient
+        .from('invoices')
+        .select('id, user_id, invoice_number, status, total_cents')
+        .eq('id', invoiceId)
+        .single()
+      
+      console.log('Invoice exists check:', { anyInvoice, anyError })
+      
+      // Now fetch with user check
       const { data: invoice, error: invoiceError } = await supabaseClient
         .from('invoices')
         .select(`
@@ -77,18 +88,12 @@ serve(async (req) => {
         .eq('user_id', user.id)
         .single()
 
-      console.log('Invoice query result:', { invoice, invoiceError })
+      console.log('Invoice query with user filter:', { invoice, invoiceError })
 
       if (invoiceError || !invoice) {
-        // Additional debugging - check if invoice exists with different user
-        const { data: anyInvoice } = await supabaseClient
-          .from('invoices')
-          .select('id, user_id, invoice_number')
-          .eq('id', invoiceId)
-          .single()
-        
-        console.log('Invoice exists for different user?', anyInvoice)
-        throw new Error(`Invoice not found. Invoice ID: ${invoiceId}, User ID: ${user.id}`)
+        console.error('Invoice fetch failed. Error details:', invoiceError)
+        console.log('Invoice exists but user mismatch or RLS issue')
+        throw new Error(`Invoice not found. Invoice ID: ${invoiceId}, User ID: ${user.id}, Error: ${invoiceError?.message || 'Unknown'}`)
       }
 
       // Check if invoice is already paid
