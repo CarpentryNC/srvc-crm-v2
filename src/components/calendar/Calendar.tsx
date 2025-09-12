@@ -11,9 +11,9 @@ import {
   MagnifyingGlassIcon,
   ViewColumnsIcon
 } from '@heroicons/react/24/outline'
-import { format, isToday, isSameMonth, startOfWeek, endOfWeek, eachDayOfInterval, addDays } from 'date-fns'
+import { format, isToday, isSameMonth, startOfWeek, endOfWeek, eachDayOfInterval, addDays, parseISO } from 'date-fns'
 import { useCalendar } from '../../hooks/useCalendar'
-import type { CalendarEvent, CalendarFilters } from '../../hooks/useCalendar'
+import type { CalendarEvent, CalendarFilters, CalendarView, CalendarEventInput } from '../../hooks/useCalendar'
 import { useCustomers } from '../../hooks/useCustomers'
 import EventForm from './EventForm'
 
@@ -50,7 +50,7 @@ function EventItem({ event, onClick, compact = false }: EventItemProps) {
   }
 
   const formatTime = (dateStr: string) => {
-    return format(new Date(dateStr), 'h:mm a')
+    return format(parseISO(dateStr), 'h:mm a')
   }
 
   if (compact) {
@@ -295,7 +295,7 @@ function CalendarFiltersPanel({ filters, onFiltersChange }: CalendarFiltersProps
 // =============================================
 
 interface MonthViewProps {
-  currentView: any
+  currentView: CalendarView
   eventsByDate: Record<string, CalendarEvent[]>
   onEventClick: (event: CalendarEvent) => void
   onDateClick: (date: Date) => void
@@ -421,7 +421,7 @@ function WeekView({ currentView, eventsByDate, onEventClick }: Omit<MonthViewPro
               {weekDays.map(day => {
                 const dateKey = day.toDateString()
                 const dayEvents = (eventsByDate[dateKey] || []).filter(event => {
-                  const eventHour = new Date(event.start_datetime).getHours()
+                  const eventHour = parseISO(event.start_datetime).getHours()
                   return eventHour === hour
                 })
 
@@ -474,7 +474,7 @@ function DayView({ currentView, eventsByDate, onEventClick }: Omit<MonthViewProp
       <div className="overflow-auto max-h-96">
         {hours.map(hour => {
           const hourEvents = dayEvents.filter(event => {
-            const eventHour = new Date(event.start_datetime).getHours()
+            const eventHour = parseISO(event.start_datetime).getHours()
             return eventHour === hour
           })
 
@@ -519,7 +519,9 @@ function AgendaView({ events, onEventClick }: { events: CalendarEvent[], onEvent
   const eventsByDate = useMemo(() => {
     const grouped: Record<string, CalendarEvent[]> = {}
     events.forEach(event => {
-      const dateKey = format(new Date(event.start_datetime), 'yyyy-MM-dd')
+      // Parse the datetime with timezone awareness and extract just the date part
+      const eventDate = parseISO(event.start_datetime)
+      const dateKey = format(eventDate, 'yyyy-MM-dd')
       if (!grouped[dateKey]) grouped[dateKey] = []
       grouped[dateKey].push(event)
     })
@@ -547,7 +549,7 @@ function AgendaView({ events, onEventClick }: { events: CalendarEvent[], onEvent
             <div key={dateKey} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0">
               <div className="sticky top-0 bg-gray-50 dark:bg-gray-700 px-4 py-2 border-b border-gray-200 dark:border-gray-600">
                 <h3 className="font-semibold text-gray-900 dark:text-gray-100">
-                  {format(new Date(dateKey), 'EEEE, MMMM d')}
+                  {format(parseISO(dateKey + 'T00:00:00'), 'EEEE, MMMM d')}
                 </h3>
               </div>
               <div className="p-4 space-y-3">
@@ -608,7 +610,7 @@ export default function Calendar() {
     setShowEventForm(true)
   }
 
-  const handleSaveEvent = async (eventData: any) => {
+  const handleSaveEvent = async (eventData: CalendarEventInput) => {
     await createEvent(eventData)
   }
 
@@ -806,7 +808,7 @@ export default function Calendar() {
                 <span className="text-gray-600 dark:text-gray-400">This Week:</span>
                 <span className="font-medium">
                   {events.filter(event => {
-                    const eventDate = new Date(event.start_datetime)
+                    const eventDate = parseISO(event.start_datetime)
                     const weekStart = startOfWeek(new Date())
                     const weekEnd = endOfWeek(new Date())
                     return eventDate >= weekStart && eventDate <= weekEnd

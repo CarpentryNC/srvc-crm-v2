@@ -24,8 +24,8 @@ export default function EventForm({ onClose, onSave, initialData, mode = 'create
     all_day: initialData?.all_day || false,
     event_type: initialData?.event_type || 'custom',
     priority: initialData?.priority || 'medium',
-    customer_id: initialData?.customer_id || '',
-    assigned_to: initialData?.assigned_to || '',
+    customer_id: initialData?.customer_id || undefined,
+    assigned_to: initialData?.assigned_to || undefined,
     reminder_minutes: initialData?.reminder_minutes || [15, 60],
     is_private: initialData?.is_private || false,
     notes: initialData?.notes || '',
@@ -58,8 +58,14 @@ export default function EventForm({ onClose, onSave, initialData, mode = 'create
     { value: 1440, label: '1 day before' }
   ]
 
-  const handleChange = (field: keyof CalendarEventInput, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+  const handleChange = (field: keyof CalendarEventInput, value: string | boolean | number | number[] | undefined) => {
+    // Convert empty strings to undefined for UUID fields
+    let processedValue = value
+    if (typeof value === 'string' && (field === 'customer_id' || field === 'assigned_to' || field === 'source_id')) {
+      processedValue = value === '' ? undefined : value
+    }
+    
+    setFormData(prev => ({ ...prev, [field]: processedValue }))
     
     // Auto-update color when event type changes
     if (field === 'event_type') {
@@ -96,7 +102,7 @@ export default function EventForm({ onClose, onSave, initialData, mode = 'create
       }
 
       // Auto-set end time for all-day events
-      let eventData = { ...formData }
+      const eventData = { ...formData }
       if (formData.all_day && !formData.end_datetime) {
         const endDate = new Date(formData.start_datetime)
         endDate.setHours(23, 59, 59, 999)
@@ -122,7 +128,7 @@ export default function EventForm({ onClose, onSave, initialData, mode = 'create
         end_datetime: endDate.toISOString().slice(0, 16)
       }))
     }
-  }, [formData.start_datetime, formData.all_day])
+  }, [formData.start_datetime, formData.all_day, formData.end_datetime])
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

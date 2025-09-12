@@ -161,28 +161,42 @@ export function useJobs() {
       const endDate = new Date(startDate);
       endDate.setHours(startDate.getHours() + (job.estimated_hours || 4));
 
+      // Prepare calendar event data with all required fields
+      const calendarEventData = {
+        user_id: user.id,
+        title: job.title,
+        description: `Job: ${job.description || 'Scheduled job work'}`,
+        location: '', // Default empty string
+        start_datetime: job.scheduled_date,
+        end_datetime: endDate.toISOString(),
+        all_day: false,
+        timezone: 'America/New_York',
+        event_type: 'job' as const,
+        source_type: 'job' as const,
+        source_id: job.id,
+        customer_id: job.customer_id,
+        status: 'scheduled' as const,
+        priority: 'medium' as const,
+        color: '#10B981', // Green for jobs
+        is_private: false,
+        reminder_minutes: [15, 60], // 15 min and 1 hour reminders
+        notes: `Job ID: ${job.id}${customer ? ` - Customer: ${customer.first_name} ${customer.last_name}` : ''}`
+      };
+
+      console.log('Creating calendar event with data:', calendarEventData);
+
       // Create calendar event
-      const { error: calendarError } = await supabase
+      const { data, error: calendarError } = await supabase
         .from('calendar_events')
-        .insert({
-          user_id: user.id,
-          title: job.title,
-          description: `Job: ${job.description || 'Scheduled job work'}`,
-          start_datetime: job.scheduled_date,
-          end_datetime: endDate.toISOString(),
-          event_type: 'job',
-          source_type: 'job',
-          source_id: job.id,
-          customer_id: job.customer_id,
-          status: 'scheduled',
-          priority: 'medium',
-          color: '#10B981', // Green for jobs
-          reminder_minutes: [15, 60], // 15 min and 1 hour reminders
-          notes: `Job ID: ${job.id}${customer ? ` - Customer: ${customer.first_name} ${customer.last_name}` : ''}`
-        });
+        .insert(calendarEventData)
+        .select()
+        .single();
 
       if (calendarError) {
+        console.error('Calendar event creation error:', calendarError);
         console.warn('Failed to create calendar event for job:', calendarError);
+      } else {
+        console.log('Calendar event created successfully:', data);
       }
     } catch (error) {
       console.warn('Error creating calendar event for job:', error);
