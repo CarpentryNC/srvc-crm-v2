@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useInvoices, type Invoice, type InvoiceLineItem, type InvoicePayment } from '../../hooks/useInvoices';
 import { useCustomers } from '../../hooks/useCustomers';
@@ -9,6 +9,8 @@ import { EnvelopeIcon } from '@heroicons/react/24/outline';
 import PaymentModal from './PaymentModal';
 import SendInvoiceEmailModal from '../emails/SendInvoiceEmailModal';
 import StripeInvoicePayment from './InvoicePayment';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../hooks/useAuth';
 
 interface InvoiceViewProps {
   invoiceId?: string;
@@ -19,6 +21,7 @@ interface InvoiceViewProps {
 export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInvoice, onClose }: InvoiceViewProps) {
   const { id: paramInvoiceId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { getInvoice, updateInvoiceStatus, deleteInvoice, getInvoiceLineItems, getInvoicePayments, loading } = useInvoices();
   const { customers } = useCustomers();
   const { generateInvoicePDF } = usePDFGeneration();
@@ -102,7 +105,7 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
   };
 
   // Update invoice status
-  const handleStatusUpdate = async (newStatus: string) => {
+  const handleStatusUpdate = useCallback(async (newStatus: string) => {
     if (!invoice) return;
 
     try {
@@ -113,7 +116,7 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
       console.error('Error updating status:', error);
       toast.error('Failed to update status');
     }
-  };
+  }, [invoice, updateInvoiceStatus]);
 
   // Delete invoice
   const handleDelete = async () => {
@@ -177,22 +180,96 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
   };
 
   // Handle payment recording
-  const handlePaymentRecorded = async () => {
+  const handlePaymentRecorded = useCallback(async () => {
     if (!invoiceId) return;
     
     // Reload payments and check if invoice is fully paid
     try {
+      // Refresh invoice data
+      if (propInvoice) {
+        setInvoice(propInvoice);
+      } else {
+        const refreshedInvoice = await getInvoice(invoiceId);
+        setInvoice(refreshedInvoice);
+      }
+      
+      // Reload payments
       const paymentsData = await getInvoicePayments(invoiceId);
       setPayments(paymentsData);
       
+      // Check if fully paid and update status if needed
       const newPaidAmount = paymentsData.reduce((sum, payment) => sum + (payment.amount || (payment.amount_cents / 100)), 0);
       if (newPaidAmount >= totalAmount && invoice?.status !== 'paid') {
         await handleStatusUpdate('paid');
+        // Refresh invoice data again after status update
+        const finalInvoice = await getInvoice(invoiceId);
+        setInvoice(finalInvoice);
       }
+      
+      console.log('Payment data refreshed successfully');
     } catch (error) {
       console.error('Error reloading payment data:', error);
+      toast.error('Failed to refresh payment data');
     }
-  };
+  }, [invoiceId, propInvoice, getInvoice, getInvoicePayments, totalAmount, invoice?.status, handleStatusUpdate]);
+
+  // Real-time subscription for payment updates
+  useEffect(() => {
+    if (!user || !invoiceId) return;
+
+    const channel = supabase
+      .channel(`invoice_payments_${invoiceId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'invoice_payments',
+        filter: `user_id=eq.${user.id} AND invoice_id=eq.${invoiceId}`
+      }, (payload) => {
+        console.log('Payment change detected:', payload);
+        // Refresh payment data and invoice status when payment changes occur
+        handlePaymentRecorded();
+        
+        // Show toast for successful payments
+        if (payload.eventType === 'INSERT' && payload.new?.status === 'completed') {
+          const amount = payload.new.amount_cents / 100;
+          toast.success(`Payment of $${amount.toFixed(2)} recorded!`, {
+            duration: 4000,
+            icon: '💳'
+          });
+        }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public', 
+        table: 'invoices',
+        filter: `user_id=eq.${user.id} AND id=eq.${invoiceId}`
+      }, (payload) => {
+        console.log('Invoice status change detected:', payload);
+        if (payload.new?.status !== payload.old?.status) {
+          // Invoice status changed, refresh the data
+          const loadInvoiceData = async () => {
+            const updatedInvoice = await getInvoice(invoiceId);
+            if (updatedInvoice) {
+              setInvoice(updatedInvoice);
+            }
+          };
+          loadInvoiceData();
+          
+          // Show toast for status changes
+          if (payload.new?.status === 'paid') {
+            toast.success('Invoice marked as paid!', {
+              duration: 4000,
+              icon: '✅'
+            });
+          }
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, invoiceId, handlePaymentRecorded, getInvoice]);
 
   // Handle successful email sending
   const handleEmailSuccess = async () => {
@@ -630,8 +707,11 @@ export default function InvoiceView({ invoiceId: propInvoiceId, invoice: propInv
                 invoiceId={invoice.id}
                 onPaymentSuccess={() => {
                   setShowStripePayment(false)
-                  toast.success('Payment successful!')
-                  handlePaymentRecorded()
+                  toast.success('Payment successful! Your invoice has been updated.', {
+                    duration: 5000,
+                    icon: '🎉'
+                  })
+                  handlePaymentRecorded() // This will refresh payments and invoice status
                 }}
                 onPaymentError={(error) => {
                   toast.error(`Payment failed: ${error}`)
