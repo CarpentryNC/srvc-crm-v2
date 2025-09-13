@@ -106,6 +106,29 @@ async function handlePaymentSuccess(supabaseClient: SupabaseClient, paymentInten
   
   if (!invoiceId || !userId) {
     console.error('Missing invoice ID or user ID in payment intent metadata')
+    console.error('Payment Intent ID:', paymentIntent.id)
+    console.error('Metadata received:', JSON.stringify(paymentIntent.metadata))
+    console.error('Expected: invoice_id and supabase_user_id')
+    
+    // Try to find the invoice by payment intent ID as fallback
+    if (paymentIntent.id) {
+      try {
+        const { data: invoice, error } = await supabaseClient
+          .from('invoices')
+          .select('id, user_id, invoice_number, total_cents')
+          .eq('stripe_payment_intent_id', paymentIntent.id)
+          .single()
+        
+        if (invoice && !error) {
+          console.log('Found invoice by payment intent ID, proceeding with fallback processing')
+          await processPaymentWithFallback(supabaseClient, paymentIntent, invoice.id, invoice.user_id)
+          return
+        }
+      } catch (fallbackError) {
+        console.error('Fallback lookup failed:', fallbackError)
+      }
+    }
+    
     return
   }
 
@@ -276,5 +299,94 @@ async function handlePaymentCanceled(supabaseClient: SupabaseClient, paymentInte
 
   } catch (error) {
     console.error('Error handling payment cancellation:', error)
+  }
+}
+
+// Fallback function to process payments when metadata is missing
+async function processPaymentWithFallback(
+  supabaseClient: SupabaseClient, 
+  paymentIntent: Stripe.PaymentIntent, 
+  invoiceId: string, 
+  userId: string
+) {
+  try {
+    console.log(`Processing payment with fallback for invoice ${invoiceId}`)
+
+    // 1. Record the payment in invoice_payments table
+    const { error: paymentInsertError } = await supabaseClient
+      .from('invoice_payments')
+      .insert({
+        invoice_id: invoiceId,
+        user_id: userId,
+        amount_cents: paymentIntent.amount,
+        payment_date: new Date().toISOString(),
+        payment_method: 'stripe',
+        stripe_payment_intent_id: paymentIntent.id,
+        status: 'completed',
+        notes: `Stripe payment (fallback processing) - ${paymentIntent.id}`
+      })
+
+    if (paymentInsertError) {
+      throw new Error(`Failed to record payment: ${paymentInsertError.message}`)
+    }
+
+    // 2. Get invoice details to check if fully paid
+    const { data: invoice, error: invoiceError } = await supabaseClient
+      .from('invoices')
+      .select('id, total_cents, status')
+      .eq('id', invoiceId)
+      .eq('user_id', userId)
+      .single()
+
+    if (invoiceError) {
+      throw new Error(`Failed to fetch invoice: ${invoiceError.message}`)
+    }
+
+    // 3. Calculate total payments to determine new status
+    const { data: paymentsTotal, error: paymentsError } = await supabaseClient
+      .from('invoice_payments')
+      .select('amount_cents')
+      .eq('invoice_id', invoiceId)
+      .eq('user_id', userId)
+      .eq('status', 'completed')
+
+    if (paymentsError) {
+      throw new Error(`Failed to calculate payments: ${paymentsError.message}`)
+    }
+
+    const totalPaidCents = paymentsTotal.reduce((sum, payment) => sum + payment.amount_cents, 0)
+    const isFullyPaid = totalPaidCents >= invoice.total_cents
+    
+    // 4. Update invoice status based on payment amount
+    const newStatus = isFullyPaid ? 'paid' : 'partially_paid'
+    const updateData: {
+      status: string
+      stripe_payment_intent_id: string
+      paid_date?: string
+    } = {
+      status: newStatus,
+      stripe_payment_intent_id: paymentIntent.id
+    }
+
+    // Only set paid_date when fully paid
+    if (isFullyPaid) {
+      updateData.paid_date = new Date().toISOString()
+    }
+
+    const { error: invoiceUpdateError } = await supabaseClient
+      .from('invoices')
+      .update(updateData)
+      .eq('id', invoiceId)
+      .eq('user_id', userId)
+
+    if (invoiceUpdateError) {
+      throw new Error(`Failed to update invoice: ${invoiceUpdateError.message}`)
+    }
+
+    console.log(`Successfully processed fallback payment for invoice ${invoiceId}. Amount: $${paymentIntent.amount / 100}. Status: ${newStatus}`)
+
+  } catch (error) {
+    console.error('Error in fallback payment processing:', error)
+    throw error
   }
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Elements } from '@stripe/react-stripe-js'
 import { useStripePayment } from '../../hooks/useStripePayment'
 import { useInvoices } from '../../hooks/useInvoices'
+import { useAuth } from '../../hooks/useAuth'
 import type { Invoice } from '../../hooks/useInvoices'
 import { CheckCircleIcon, CreditCardIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import PaymentForm from './PaymentForm'
@@ -15,6 +16,7 @@ interface InvoicePaymentProps {
 export default function InvoicePayment({ invoiceId, onPaymentSuccess, onPaymentError }: InvoicePaymentProps) {
   const { stripePromise, createPaymentIntent, createPaymentLink, loading, error, isStripeConfigured } = useStripePayment()
   const { getInvoice } = useInvoices()
+  const { user } = useAuth()
   
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [clientSecret, setClientSecret] = useState<string | null>(null)
@@ -53,7 +55,8 @@ export default function InvoicePayment({ invoiceId, onPaymentSuccess, onPaymentE
         currency: 'usd',
         metadata: {
           invoice_id: invoice.id,
-          customer_id: invoice.customer_id
+          customer_id: invoice.customer_id,
+          supabase_user_id: user?.id || ''
         }
       })
 

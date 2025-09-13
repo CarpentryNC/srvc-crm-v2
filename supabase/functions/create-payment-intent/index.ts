@@ -140,8 +140,12 @@ serve(async (req) => {
         try {
           paymentIntent = await stripe.paymentIntents.retrieve(invoice.stripe_payment_intent_id)
           
-          // Update if amount changed
-          if (paymentIntent.amount !== amount) {
+          // Always update metadata to ensure it's present, and update amount if changed
+          const needsUpdate = paymentIntent.amount !== amount || 
+                             !paymentIntent.metadata?.invoice_id || 
+                             !paymentIntent.metadata?.supabase_user_id
+          
+          if (needsUpdate) {
             paymentIntent = await stripe.paymentIntents.update(invoice.stripe_payment_intent_id, {
               amount,
               metadata: {
